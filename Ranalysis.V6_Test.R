@@ -6,7 +6,7 @@
 
 # This File contains the statistical analysis of the monetary and return data for the research seminar in Financial Economics
 getwd()
-setwd("/Users/julianwossner/Desktop/MBF/Vorlesungen_2._Semester/Research_Seminar_Financial_Economics/ResSem19")
+setwd("C:/Users/Lars Stauffenegger/Documents/MBF Unisg/Research Seminar/ResSem19")
 # setting working directory
 
 # installing packages
@@ -138,8 +138,8 @@ accuracySMI <- (sum( predictSMI == TestDataSMI$SMIForCast ) / length( predictSMI
 accuracySMI
 
 ## Analyzing the SMI Mid
-SMIMidData <- dataret[,-c(1,7,8,10, 11, 12, 13, 14, 15, 16,17,24,25,30,31)]
-#SMIMidData <- dataret[,-c(1:15, 16, 17,24, 25, 30, 31 )]
+#SMIMidData <- dataret[,-c(1,7,8,10, 11, 12, 13, 14, 15, 16,17,24,25,30,31)]
+SMIMidData <- dataret[,-c(1:15, 16, 17,24, 25, 30, 31 )]
 TrainingDataSMIMid<- SMIMidData[1:300,] # Defining the training data from beginnig to 01.01.2016
 TestDataSMIMid <- SMIMidData[301:391,] # Defining the test data from 08.01.2016 - end
 
