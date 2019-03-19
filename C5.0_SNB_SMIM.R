@@ -18,7 +18,10 @@ library(zoo)
 library(ggplot2)
 
 # setting working directory
-#setwd("C:/Users/Lars Stauffenegger/Documents/MBF Unisg/Research Seminar")
+getwd()
+#setwd("C:/Users/Lars Stauffenegger/Documents/MBF Unisg/Research Seminar/ResSem19")
+setwd("C:/Users/LST/Documents/Uni/Research Seminar/ResSem19")
+
 
 # Data Import --------------------------------------
 # Index Data
@@ -157,12 +160,25 @@ accuracyPostCapPeriod # 53%
 
 
 # Predict up and down movements for whole dataset
-train <- SNB.SMIMdata[1:150,]
-test <- SNB.SMIMdata[151:350,]
-model <- C5.0(SNB.SMIMdata[-16], SNB.SMIMdata$SMIM.FC, rules = TRUE, trials = 100) 
-predict <- predict(model, newdata = test[,-16])
+
+# Shorter Training - 56%
+SMIM.train <- SNB.SMIMdata[1:150,]
+SMIM.test <- SNB.SMIMdata[151:350,]
+
+# Longer training - 54%
+SMIM.train <- SNB.SMIMdata[1:300,]
+SMIM.test <- SNB.SMIMdata[301:350,]
+
+# train = Cap, test = PostCap - 50%
+SMIM.train <- SNB.SMIMdata[1:137,]
+SMIM.test <- SNB.SMIMdata[138:350,]
+
+# Model and Prediction for SMI Mid Cap
+model <- C5.0(SMIM.train[-16], SMIM.train$SMIM.FC, rules = TRUE, trials = 100) 
+predict <- predict(model, newdata = SMIM.test[,-16])
+summary(model)
 summary(predict)
 summary(test$SMIM.FC)
-accuracySMIMid <- (sum( predict == test$SMIM.FC ) / length( predict ))*100 # Calculating the accuracy of the predicitons.
-accuracySMIMid # 96% 
+accuracySMIMid <- (sum( predict == SMIM.test$SMIM.FC ) / length( predict ))*100 # Calculating the accuracy of the predicitons.
+accuracySMIMid
 ## TODO: carefully add 1 or 2 variables, See if we can get rid of data n/a before '12, Understand rules
