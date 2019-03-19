@@ -166,8 +166,8 @@ SMIM.train <- SNB.SMIMdata[1:150,]
 SMIM.test <- SNB.SMIMdata[151:350,]
 
 # Longer training - 54%
-SMIM.train <- SNB.SMIMdata[1:300,]
-SMIM.test <- SNB.SMIMdata[301:350,]
+SMIM.train <- SNB.SMIMdata[1:250,]
+SMIM.test <- SNB.SMIMdata[251:350,]
 
 # train = Cap, test = PostCap - 50%
 SMIM.train <- SNB.SMIMdata[1:137,]
