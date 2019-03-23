@@ -56,7 +56,7 @@ ChgSDdomBanks <- diff(dataind08$SDofDomBanks)/dataind08$SDofDomBanks[-length(dat
 
 # Creating Returns data set
 dataret <- dataind08[-1,]
-dataret <- cbind(dataret, RetSMI, RetSPIEX, RetSMIMid, ChgSDdomBanks)
+dataret <- cbind(dataret, RetSMI, RetSPIEX, RetSMIMid, ChgSDdomBanks) # adding percent changes to the data set
 
 # Inclusions
 SMIdata <- dataret[,-c(3,5,12,13)]  # Includes SMI as only stock indice
@@ -108,39 +108,43 @@ dev.off()
 # Descriptive statistics
 # All Variables
 DataWoDates <- dataret[,-1] # Delete the Date column
+
 # PreCap period
-descr.PreCap <- describe(DataWoDates[1:186,])
+descr.PreCap <- describe(DataWoDates[1:186,]) # summary statistics for PreCap period
 mean(DataWoDates[1:186,]$RetSMI)
 mean(DataWoDates[1:186,]$RetSPIEX)
 mean(DataWoDates[1:186,]$RetSMIMid)
-
 min(DataWoDates[1:186,]$Libor3M_CHF)
 min(DataWoDates[1:186,]$ChgSDdomBanks)
+
 # Cap period
-descr.Cap <- describe(DataWoDates[187:363,])
+descr.Cap <- describe(DataWoDates[187:363,]) # summary statistics for Cap period
 mean(DataWoDates[187:363,]$RetSMI)
 mean(DataWoDates[187:363,]$RetSPIEX)
 mean(DataWoDates[187:363,]$RetSMIMid)
 mean(DataWoDates[187:363,]$ChgSDdomBanks)
-# PostCap period
 
-descr.PostCap <- describe(DataWoDates[364:575,])
+# PostCap period
+descr.PostCap <- describe(DataWoDates[364:575,]) # summary statistics for PostCap period
 mean(DataWoDates[364:575,]$RetSMI)
 mean(DataWoDates[364:575,]$RetSPIEX)
 mean(DataWoDates[364:575,]$RetSMIMid)
 mean(DataWoDates[364:575,]$ChgSDdomBanks)
+
+
 ## Correlations --------------------------------------
 # Indices & SNB Sight Deposits
-cor.ind <- cor(dataind04[,-1], method = "spearman")
-
+cor.ind <- cor(dataind04[,-1], method = "spearman") # Correlation for whole time period
 Cor <- cor(DataWoDates, method = "spearman") # calculate the Correlation Matrix Spearman
+
 # PreCapPeriods
-PreCapPeriod.cor <- cor(DataWoDates[1:186,], method = "spearman")
+PreCapPeriod.cor <- cor(DataWoDates[1:186,], method = "spearman") # spearman correlation for PreCap period
+
 # During CapPeriods
-CapPeriod.cor <- cor(DataWoDates[187:363, ], method = "spearman")
+CapPeriod.cor <- cor(DataWoDates[187:363, ], method = "spearman") # spearman correlation for Cap period
 
 # PostCapPeriod CapPeriods
-PostCapPeriod.cor <- cor(DataWoDates[364:575,], method = "spearman")
+PostCapPeriod.cor <- cor(DataWoDates[364:575,], method = "spearman") # spearman correlation for PostCap period
 
 
 
@@ -158,20 +162,20 @@ PostCapPeriod.SMI <- SMIdata[364:575,-1] # Data set from 2015 - 01 - 22 to 2019 
 # Implement the model for the PreCap, CapPeriod phase and the PostCapPeriod 
 # CapPeriod phase to see how much more the SNB variables are used to define rules
 
-# PreCapPeriod Model describing SMI Forecast (column 10)
+# PreCapPeriod Model describing SMI Forecast (column 12)
 PreCapPeriod.SMI.model <- C5.0(PreCapPeriod.SMI[-12], PreCapPeriod.SMI$SMI.FC, rules = TRUE, trials = 100)
 PreCapPeriod.SMI.model
-summary(PreCapPeriod.SMI.model) # SDdomBanksdir 9.14%
+summary(PreCapPeriod.SMI.model) # SDdomBanksdir 9.14%, SDdomBanks 9.14%
 
-# CapPeriod Model describing SMI Forecast (column 10)
+# CapPeriod Model describing SMI Forecast (column 12)
 CapPeriod.SMI.model <- C5.0(CapPeriod.SMI[-12], CapPeriod.SMI$SMI.FC, rules = TRUE, trials = 100)
 CapPeriod.SMI.model
-summary(CapPeriod.SMI.model) # 100% SDdomBanksdir, 41.24% ChgSDdomBanks
+summary(CapPeriod.SMI.model) # 100% SDdomBanksdir, 100% ChgSDdomBanks, 18.08% SDofDomBanks
 
-# PostCapPeriod Model describing SMI Forecast (column 10)
+# PostCapPeriod Model describing SMI Forecast (column 12)
 PostCapPeriod.SMI.model <- C5.0(PostCapPeriod.SMI[-12], PostCapPeriod.SMI$SMI.FC, rules = TRUE, trials = 100)
 PostCapPeriod.SMI.model
-summary(PostCapPeriod.SMI.model) # 6.6% SDdomBanksdir
+summary(PostCapPeriod.SMI.model) # 9.91% SDdomBanksdir
 
 
 # SPI Extra Stock indice --------------------------------
@@ -185,17 +189,17 @@ PostCapPeriod.SPIEX <- SPIEXdata[364:575,-1] # Data set from 2015 - 01 - 22 to 2
 # Implement the model for the PreCap, CapPeriod phase and the PostCapPeriod 
 # CapPeriod phase to see how much more the SNB variables are used to define rules
 
-# PreCapPeriod Model describing SMI Forecast (column 10)
+# PreCapPeriod Model describing SPIEX Forecast (column 12)
 PreCapPeriod.SPIEX.model <- C5.0(PreCapPeriod.SPIEX[-12], PreCapPeriod.SPIEX$SPIEX.FC, rules = TRUE, trials = 100)
 PreCapPeriod.SPIEX.model
-summary(PreCapPeriod.SPIEX.model) # 54.84% SDdomBanksdir, 52.15% ChgSDdomBanks
+summary(PreCapPeriod.SPIEX.model) # 52.15% ChgSDdomBanks, 17.20% SDdomBanksdir, 2.69% SDofDomBanks
 
-# CapPeriod Model describing SMI Forecast (column 10)
+# CapPeriod Model describing SPIEX Forecast (column 12)
 CapPeriod.SPIEX.model <- C5.0(CapPeriod.SPIEX[-12], CapPeriod.SPIEX$SPIEX.FC, rules = TRUE)
 CapPeriod.SPIEX.model
 summary(CapPeriod.SPIEX.model) # 48.59% ChgSDdomBanks, 2.82% SDdomBanksdir
 
-# PostCapPeriod Model describing SMI Forecast (column 10)
+# PostCapPeriod Model describing SPIEX Forecast (column 12)
 PostCapPeriod.SPIEX.model <- C5.0(PostCapPeriod.SPIEX[-12], PostCapPeriod.SPIEX$SPIEX.FC,rules = TRUE, trials = 100)
 PostCapPeriod.SPIEX.model
 summary(PostCapPeriod.SPIEX.model) # No usage of SNB data
@@ -205,7 +209,7 @@ summary(PostCapPeriod.SPIEX.model) # No usage of SNB data
 # SMI Mid Stock indice --------------------------------
 # Defining the Periods for the three stock indices
 # Three Periods: Before, During and Post Cap (row 363 is the 16th of Jan, i.e. 1 day after the removal of the Cap, row 187 is the 2nd september, i.e. 4 days before the introduction of the cap)
-PreCapPeriod.SMIM <- SMIMdata[1:188,-1] # Data set from 2008 - 02 - 08 to 2011 - 08 - 26 (PreCapPeriod phase)
+PreCapPeriod.SMIM <- SMIMdata[1:186,-1] # Data set from 2008 - 02 - 08 to 2011 - 08 - 26 (PreCapPeriod phase)
 CapPeriod.SMIM <- SMIMdata[187:363,-1] # Data set from 2011 - 09 - 02 to 2015 - 01 - 15 (CapPeriod phase)
 PostCapPeriod.SMIM <- SMIMdata[364:575,-1] # Data set from 2015 - 01 - 22 to 2019 - 02 - 22 (PostCapPeriod CapPeriod phase)
 
@@ -213,19 +217,19 @@ PostCapPeriod.SMIM <- SMIMdata[364:575,-1] # Data set from 2015 - 01 - 22 to 201
 # Implement the model for the PreCap, CapPeriod phase and the PostCapPeriod 
 # CapPeriod phase to see how much more the SNB variables are used to define rules
 
-# PreCapPeriod Model describing SMI Forecast (column 10)
-PreCapPeriod.SMIM.model <- C5.0(PreCapPeriod.SMIM[-12], PreCapPeriod.SMIM$SMIM.FC, rules = TRUE, trials = 100)
+# PreCapPeriod Model describing SMI mid Forecast (column 12)
+PreCapPeriod.SMIM.model <- C5.0(PreCapPeriod.SMIM[-12], PreCapPeriod.SMIM$SMIM.FC, rules = TRUE)
 PreCapPeriod.SMIM.model
-summary(PreCapPeriod.SMIM.model) # 14.52% SDdomBanksdir
+summary(PreCapPeriod.SMIM.model) # 100% SDofDomBanks, 19.89% SDdomBanksdir
 
-# CapPeriod Model describing SMI Forecast (column 10)
+# CapPeriod Model describing SMI mid Forecast (column 12)
 CapPeriod.SMIM.model <- C5.0(CapPeriod.SMIM[-12], CapPeriod.SMIM$SMIM.FC, rules = TRUE, trials = 100)
 CapPeriod.SMIM.model
-summary(CapPeriod.SMIM.model) # 50.28% SDdomBanksdir, 2.82% ChgSDdomBanks
+summary(CapPeriod.SMIM.model) # 48.02% SDdomBanksdir, 2.82% ChgSDdomBanks
 
-# PostCapPeriod Model describing SMI Forecast (column 10)
+# PostCapPeriod Model describing SMI mid Forecast (column 12)
 PostCapPeriod.SMIM.model <- C5.0(PostCapPeriod.SMIM[-12], PostCapPeriod.SMIM$SMIM.FC,rules = TRUE, trials = 100)
 PostCapPeriod.SMIM.model
-summary(PostCapPeriod.SMIM.model) # 14.15% ChgSDdomBanks, 11.32% SDdomBanksdir
+summary(PostCapPeriod.SMIM.model) # 7.08% ChgSDdomBanks, 7.08% SDdomBanksdir
 
 
