@@ -16,6 +16,7 @@ library(jtools)
 library(huxtable)
 library(zoo)
 library(ggplot2)
+library(psych)
 
 # setting working directory
 getwd()
@@ -93,7 +94,7 @@ SMIMdata <-SMIMdata[-575,] # delete the last row
 
 
 
-## Plotting --------------------------------------
+## Plotting and descriptive statistics --------------------------------------
 # Indices
 pdf("plot_SD_ExchangeRate.pdf", height = 10, width = 15)
 par(mfrow = c(2,1))
@@ -104,21 +105,42 @@ plot(dataind04$Date, dataind04$SNBSD,  type = "l", xlab = "Date", ylab = "Index"
 plot(dataind04$Date, dataind04$CHF.EUR,  type = "l", xlab = "Date", ylab = "Index", main = "CHF/EUR Exchange rate") # CHF/EUR Exchange rate
 dev.off()
 
+# Descriptive statistics
+# All Variables
+DataWoDates <- dataret[,-1] # Delete the Date column
+# PreCap period
+descr.PreCap <- describe(DataWoDates[1:186,])
+mean(DataWoDates[1:186,]$RetSMI)
+mean(DataWoDates[1:186,]$RetSPIEX)
+mean(DataWoDates[1:186,]$RetSMIMid)
 
+min(DataWoDates[1:186,]$Libor3M_CHF)
+min(DataWoDates[1:186,]$ChgSDdomBanks)
+# Cap period
+descr.Cap <- describe(DataWoDates[187:363,])
+mean(DataWoDates[187:363,]$RetSMI)
+mean(DataWoDates[187:363,]$RetSPIEX)
+mean(DataWoDates[187:363,]$RetSMIMid)
+mean(DataWoDates[187:363,]$ChgSDdomBanks)
+# PostCap period
+
+descr.PostCap <- describe(DataWoDates[364:575,])
+mean(DataWoDates[364:575,]$RetSMI)
+mean(DataWoDates[364:575,]$RetSPIEX)
+mean(DataWoDates[364:575,]$RetSMIMid)
+mean(DataWoDates[364:575,]$ChgSDdomBanks)
 ## Correlations --------------------------------------
 # Indices & SNB Sight Deposits
 cor.ind <- cor(dataind04[,-1], method = "spearman")
 
-# All Variables
-DataWoDates <- dataret[,-1] # Delete the Date column
 Cor <- cor(DataWoDates, method = "spearman") # calculate the Correlation Matrix Spearman
 # PreCapPeriods
-PreCapPeriod.cor <- cor(DataWoDates[1:186,])
+PreCapPeriod.cor <- cor(DataWoDates[1:186,], method = "spearman")
 # During CapPeriods
-CapPeriod.cor <- cor(DataWoDates[187:363, ])
+CapPeriod.cor <- cor(DataWoDates[187:363, ], method = "spearman")
 
 # PostCapPeriod CapPeriods
-PostCapPeriod.cor <- cor(DataWoDates[364:575,])
+PostCapPeriod.cor <- cor(DataWoDates[364:575,], method = "spearman")
 
 
 
@@ -205,7 +227,5 @@ summary(CapPeriod.SMIM.model) # 50.28% SDdomBanksdir, 2.82% ChgSDdomBanks
 PostCapPeriod.SMIM.model <- C5.0(PostCapPeriod.SMIM[-10], PostCapPeriod.SMIM$SMIM.FC,rules = TRUE, trials = 100)
 PostCapPeriod.SMIM.model
 summary(PostCapPeriod.SMIM.model) # 14.15% ChgSDdomBanks, 11.32% SDdomBanksdir
-
-
 
 
