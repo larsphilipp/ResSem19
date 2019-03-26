@@ -17,11 +17,12 @@ library(huxtable)
 library(zoo)
 library(ggplot2)
 library(psych)
+library(xtable)
 
 # setting working directory
 getwd()
-#setwd("C:/Users/Lars Stauffenegger/Documents/MBF Unisg/Research Seminar/ResSem19")
-setwd("/Users/julianwossner/Desktop/MBF/Vorlesungen_2._Semester/Research_Seminar_Financial_Economics/Daten/ResSem19")
+setwd("C:/Users/Lars Stauffenegger/Documents/MBF Unisg/Research Seminar/ResSem19")
+#setwd("/Users/julianwossner/Desktop/MBF/Vorlesungen_2._Semester/Research_Seminar_Financial_Economics/Daten/ResSem19")
 #setwd("C:/Users/LST/Documents/Uni/Research Seminar/ResSem19")
 
 
@@ -50,19 +51,22 @@ str(dataind08)
 RetSMI <-  diff(log(dataind08$SMI)) # Weekly returns of the SMI
 RetSPIEX <- diff(log(dataind08$SPIEX)) # Weekly returns of the SPIEX
 RetSMIMid <- diff(log(dataind08$SMIMid)) # Weekly returns of the SMIMid
+RetCHFEUR <- diff(log(dataind08$CHFEUR)) # Weekly returns of the SMIMid
 
 # SNB Data
 ChgSDdomBanks <- diff(dataind08$SDofDomBanks)/dataind08$SDofDomBanks[-length(dataind08$SDofDomBanks)] # Sight deposits of dom. Banks
 
 # Creating Returns data set
 dataret <- dataind08[-1,]
-dataret <- cbind(dataret, RetSMI, RetSPIEX, RetSMIMid, ChgSDdomBanks) # adding percent changes to the data set
+dataret <- cbind(dataret, RetSMI, RetSPIEX, RetSMIMid, ChgSDdomBanks, RetCHFEUR) # adding percent changes to the data set
 
 # Inclusions
-SMIdata <- dataret[,-c(3,5,12,13)]  # Includes SMI as only stock indice
-SPIEXdata <- dataret[,-c(4,5,11,13)] # Includes SPI Extra as only stock indice
-SMIMdata <- dataret[, -c(3,4,11,12)] # Includes the SMI Mid as only stock indice
-
+SMIdata    <- dataret[,-c(3,5,12,13,15)]   # Includes SMI as only stock indice
+SPIEXdata  <- dataret[,-c(4,5,11,13,15)] # Includes SPI Extra as only stock indice
+SMIMdata   <- dataret[,-c(3,4,11,12,15)]  # Includes the SMI Mid as only stock indice
+#CHFEURdata <- dataret[,-c(3,5,12,13)] # including SMI
+#CHFEURdata <- dataret[,-c(3,4,11,12)] # including SMIM
+CHFEURdata <- dataret # including SMI and SMIM
 
 ## Classification: Up / Down --------------------------------------
 
@@ -81,18 +85,23 @@ SPIEXdata$SPIEX.FC[1:574] <- SPIEXdata$SPIEX.FC[2:575] # Lag the series to produ
 SPIEXdata <-SPIEXdata[-575,] # delete the last row
 
 # SMImid data
-SMIMdata$SMIdir <- as.factor(ifelse(SMIMdata$RetSMIMid > 0, "up", ifelse(SMIMdata$RetSMIMid < 0, "down", "no change" ))) # Including a column with up, down factors
+SMIMdata$SMIMdir <- as.factor(ifelse(SMIMdata$RetSMIMid > 0, "up", ifelse(SMIMdata$RetSMIMid < 0, "down", "no change" ))) # Including a column with up, down factors
 SMIMdata$SDdomBanksdir <- as.factor(ifelse(SMIMdata$ChgSDdomBanks > 0, "up", ifelse(SMIMdata$ChgSDdomBanks < 0, "down", "no change" )))
 SMIMdata$SMIM.FC <- as.factor(ifelse(SMIMdata$RetSMIMid > 0, "up", ifelse(SMIMdata$RetSMIMid < 0, "down", "no change" ))) # Reproduce the column SMIM.Dir
 SMIMdata$SMIM.FC[1:574] <- SMIMdata$SMIM.FC[2:575] # Lag the series to produce forecasts
 SMIMdata <-SMIMdata[-575,] # delete the last row
 
-
-
-
-
-
-
+# CHFEUR data
+CHFEURdata$SMIdir <- as.factor(ifelse(CHFEURdata$RetSMI > 0, "up", ifelse(CHFEURdata$RetSMI < 0, "down", "no change" ))) # Including a column with up, down factors
+CHFEURdata$SMIMdir <- as.factor(ifelse(CHFEURdata$RetSMIM > 0, "up", ifelse(CHFEURdata$RetSMIM < 0, "down", "no change" ))) # Including a column with up, down factors
+CHFEURdata$SPIEXdir <- as.factor(ifelse(CHFEURdata$RetSPIEX > 0, "up", ifelse(CHFEURdata$RetSPIEX < 0, "down", "no change" ))) # Including a column with up, down factors
+CHFEURdata$SDdomBanksdir <- as.factor(ifelse(CHFEURdata$ChgSDdomBanks > 0, "up", ifelse(CHFEURdata$ChgSDdomBanks < 0, "down", "no change" )))
+CHFEURdata$CHFEURdir <- as.factor(ifelse(CHFEURdata$RetCHFEUR > 0, "up", ifelse(CHFEURdata$RetCHFEUR < 0, "down", "no change" ))) # Including a column with up, down factors
+CHFEURdata$CHFEURprev <- CHFEURdata$CHFEUR # CHFEURdata$CHFEURdir
+CHFEURdata$CHFEURprev[2:575] <- CHFEURdata$CHFEUR[1:574] # CHFEURdata$CHFEURdir[1:574]
+CHFEURdata$CHFEURnext <- CHFEURdata$CHFEURdir
+CHFEURdata$CHFEURnext[1:574] <- CHFEURdata$CHFEURdir[2:575] # CHFEURdata$CHFEURdir[1:574]
+CHFEURdata <-CHFEURdata[2:556,] # delete the last row
 
 ## Plotting and descriptive statistics --------------------------------------
 # Indices
@@ -150,6 +159,104 @@ PostCapPeriod.cor <- cor(DataWoDates[364:575,], method = "spearman") # spearman 
 
 ## Data extention & C50 algorithm --------------------------------------
 # Using C5.0 algorithm
+# Defining the Periods for the three stock indices
+# Three Periods: Before, During and Post Cap (row 363 is the 16th of Jan, i.e. 1 day after the removal of the Cap, row 187 is the 2nd september, i.e. 4 days before the introduction of the cap)
+PreCapPeriod.CHFEUR <- CHFEURdata[1:185,-1] # Data set from 2008 - 02 - 08 to 2011 - 08 - 26 (PreCapPeriod phase)
+CapPeriod.CHFEUR <- CHFEURdata[186:362,-1] # Data set from 2011 - 09 - 02 to 2015 - 01 - 15 (CapPeriod phase)
+PostCapPeriod.CHFEUR <- CHFEURdata[363:555,-1]
+
+
+# Sampling Object --------------------------------------------------
+samplingC5 <- function(inputData, dependentVariable, trainShare) {
+  sumVariableImportance = setNames(data.frame(matrix(ncol = length(names(inputData)), nrow = 1)), names(inputData))
+  boostTrain = vector() 
+  boostTest = vector()
+  
+  for (i in 1:100) {
+    model <- C5.0(inputData, dependentVariable,
+                  rules = TRUE, trials = 10, 
+                  control = C5.0Control(sample=trainShare))
+    #summary(model)
+    
+    # parsing Boost Error Value
+    output <- strsplit(model[["output"]], "\n")[[1]]
+    boostRow <- grep("^boost\t", output)
+    boostTrain[i] <- gsub(".*\\(|\\).*", "", output[(boostRow[1])])
+    boostTest[i] <- gsub(".*\\(|\\).*", "", output[(boostRow[2])])
+    #print(boostTrain[i])
+    
+    # parsing Variable Importance 
+    variableImportance <- C5imp(model)
+    
+    for (var in model[["predictors"]]) {
+      sumVariableImportance[i,var] = variableImportance[var,]
+    }
+  }
+  orderOfImportance <- sort(colMeans(sumVariableImportance), decreasing = TRUE)
+  boostTrain <- as.numeric(sub("%", "", boostTrain[!is.na(boostTrain)]))
+  boostTest  <- as.numeric(sub("%", "", boostTest[!is.na(boostTest)]))
+  meanBoostTrain <- mean(boostTrain)
+  meanBoostTest  <- mean(boostTest)
+  
+  results <- c(trainError = meanBoostTrain, testError = meanBoostTest, varImp = orderOfImportance) 
+  attr(results, "class") <- "samplingC5"
+  results
+}
+# -----------------------------------------------------------------
+## This week is forecasted using current data and last weeks chfeur
+# -> ok results for looking at the exchange rate as a pattern of current 
+# (same point in time) financial market parameters and itself(lag 1) 
+trainShare <- 0.7
+samplingCapPeriodCHFEUR <- samplingC5(CapPeriod.CHFEUR[-c(9,14,19)], CapPeriod.CHFEUR$CHFEURdir, trainShare) 
+print(samplingCapPeriodCHFEUR)
+#samplingCapPeriodCHFEUR["trainError"]
+
+samplingPreCHFEURSMI <- samplingC5(PreCapPeriod.CHFEUR[-c(2,11,17,4,12,16,9,14,19,21)], PreCapPeriod.CHFEUR$CHFEURdir, trainShare) 
+print(samplingPreCHFEURSMI)
+samplingCapCHFEURSMI <- samplingC5(CapPeriod.CHFEUR[-c(2,11,17,4,12,16,9,14,19,21)], CapPeriod.CHFEUR$CHFEURdir, trainShare) 
+print(samplingCapCHFEURSMI)
+samplingPostCHFEURSMI <- samplingC5(PostCapPeriod.CHFEUR[-c(2,11,17,4,12,16,9,14,19,21)], PostCapPeriod.CHFEUR$CHFEURdir, trainShare) 
+print(samplingPostCHFEURSMI)
+
+samplingPreCHFEURSMIM <- samplingC5(PreCapPeriod.CHFEUR[-c(2,11,17,3,10,15,9,14,19,21)], PreCapPeriod.CHFEUR$CHFEURdir, trainShare) 
+print(samplingPreCHFEURSMIM)
+samplingCapCHFEURSMIM <- samplingC5(CapPeriod.CHFEUR[-c(2,11,17,3,10,15,9,14,19,21)], CapPeriod.CHFEUR$CHFEURdir, trainShare) 
+print(samplingCapCHFEURSMIM)
+samplingPostCHFEURSMIM <- samplingC5(PostCapPeriod.CHFEUR[-c(2,11,17,3,10,15,9,14,19,21)], PostCapPeriod.CHFEUR$CHFEURdir, trainShare) 
+print(samplingPostCHFEURSMIM)
+
+samplingPreCHFEURSPIEX <- samplingC5(PreCapPeriod.CHFEUR[-c(3,10,15,4,12,16,9,14,19,21)], PreCapPeriod.CHFEUR$CHFEURdir, trainShare) 
+print(samplingPreCHFEURSPIEX)
+samplingCapPeriodCHFEURSPIEX <- samplingC5(CapPeriod.CHFEUR[-c(3,10,15,4,12,16,9,14,19,21)], CapPeriod.CHFEUR$CHFEURdir, trainShare) 
+print(samplingCapPeriodCHFEURSPIEX)
+samplingPostCHFEURSPIEX <- samplingC5(PostCapPeriod.CHFEUR[-c(3,10,15,4,12,16,9,14,19,21)], PostCapPeriod.CHFEUR$CHFEURdir, trainShare) 
+print(samplingPostCHFEURSPIEX)
+
+
+###  Next week is forecasted using current data
+# ->not great results and asssumption of signal (forecast one week after 
+# publication) and lag one influence of financial parameter
+samplingPreCHFEURSMI <- samplingC5(PreCapPeriod.CHFEUR[-c(2,11,17,4,12,16,20,21)], PreCapPeriod.CHFEUR$CHFEURnext, trainShare) 
+print(samplingPreCHFEURSMI)
+samplingCapCHFEURSMI <- samplingC5(CapPeriod.CHFEUR[-c(2,11,17,4,12,16,20,21)], CapPeriod.CHFEUR$CHFEURnext, trainShare) 
+print(samplingCapCHFEURSMI)
+samplingPostCHFEURSMI <- samplingC5(PostCapPeriod.CHFEUR[-c(2,11,17,4,12,16,20,21)], PostCapPeriod.CHFEUR$CHFEURnext, trainShare) 
+print(samplingPostCHFEURSMI)
+
+samplingPreCHFEURSMIM <- samplingC5(PreCapPeriod.CHFEUR[-c(2,11,17,3,10,15,20,21)], PreCapPeriod.CHFEUR$CHFEURnext, trainShare) 
+print(samplingPreCHFEURSMIM)
+samplingCapCHFEURSMIM <- samplingC5(CapPeriod.CHFEUR[-c(2,11,17,3,10,15,20,21)], CapPeriod.CHFEUR$CHFEURnext, trainShare) 
+print(samplingCapCHFEURSMIM)
+samplingPostCHFEURSMIM <- samplingC5(PostCapPeriod.CHFEUR[-c(2,11,17,3,10,15,9,21)], PostCapPeriod.CHFEUR$CHFEURnext, trainShare) 
+print(samplingPostCHFEURSMIM)
+
+samplingPreCHFEURSPIEX <- samplingC5(PreCapPeriod.CHFEUR[-c(3,10,15,4,12,16,9,14,19,20,21)], PreCapPeriod.CHFEUR$CHFEURnext, trainShare) 
+print(samplingPreCHFEURSPIEX)
+samplingCapPeriodCHFEURSPIEX <- samplingC5(CapPeriod.CHFEUR[-c(3,10,15,4,12,16,9,14,19,20)], CapPeriod.CHFEUR$CHFEURnext, trainShare) 
+print(samplingCapPeriodCHFEURSPIEX)
+samplingPostCHFEURSPIEX <- samplingC5(PostCapPeriod.CHFEUR[-c(3,10,15,4,12,16,9,14,19,20)], PostCapPeriod.CHFEUR$CHFEURnext, trainShare) 
+print(samplingPostCHFEURSPIEX)
+########################### --------------------------
 
 # SMI Stock indice --------------------------------------
 # Defining the Periods for the three stock indices
@@ -157,7 +264,6 @@ PostCapPeriod.cor <- cor(DataWoDates[364:575,], method = "spearman") # spearman 
 PreCapPeriod.SMI <- SMIdata[1:186,-1] # Data set from 2008 - 02 - 08 to 2011 - 08 - 26 (PreCapPeriod phase)
 CapPeriod.SMI <- SMIdata[187:363,-1] # Data set from 2011 - 09 - 02 to 2015 - 01 - 15 (CapPeriod phase)
 PostCapPeriod.SMI <- SMIdata[364:575,-1] # Data set from 2015 - 01 - 22 to 2019 - 02 - 22 (PostCapPeriod CapPeriod phase)
-
 
 # Implement the model for the PreCap, CapPeriod phase and the PostCapPeriod 
 # CapPeriod phase to see how much more the SNB variables are used to define rules
@@ -184,8 +290,18 @@ summary(PostCapPeriod.SMI.model) # 9.91% SDdomBanksdir
 PreCapPeriod.SPIEX <- SPIEXdata[1:186,-1] # Data set from 2008 - 02 - 08 to 2011 - 08 - 26 (PreCapPeriod phase)
 CapPeriod.SPIEX <- SPIEXdata[187:363,-1] # Data set from 2011 - 09 - 02 to 2015 - 01 - 15 (CapPeriod phase)
 PostCapPeriod.SPIEX <- SPIEXdata[364:575,-1] # Data set from 2015 - 01 - 22 to 2019 - 02 - 22 (PostCapPeriod CapPeriod phase)
-
-
+allDataSPIEX <- SPIEXdata[,-1]
+## Test SPIEX PreCap with random Sample
+modelSMI <- C5.0(CapPeriod.SMI[-c(7,12)], CapPeriod.SMI$CHFEUR, 
+                         rules = TRUE, trials = 10, 
+                         control = C5.0Control(sample=0.7))
+summary(modelSMI)
+predict <- predict(modelPreCapSPIEX, newdata = SMIM.test[,-16])
+summary(modelPreCapSPIEX)
+summary(predict)
+summary(test$SMIM.FC)
+accuracySMIMid <- (sum( predict == SMIM.test$SMIM.FC ) / length( predict ))*100 # Calculating the accuracy of the predicitons.
+accuracySMIMid
 # Implement the model for the PreCap, CapPeriod phase and the PostCapPeriod 
 # CapPeriod phase to see how much more the SNB variables are used to define rules
 
