@@ -21,8 +21,8 @@ library(xtable)
 
 # setting working directory
 getwd()
-#setwd("C:/Users/Lars Stauffenegger/Documents/MBF Unisg/Research Seminar/ResSem19")
-setwd("/Users/julianwossner/Desktop/MBF/Vorlesungen_2._Semester/Research_Seminar_Financial_Economics/Daten/ResSem19")
+setwd("C:/Users/Lars Stauffenegger/Documents/MBF Unisg/Research Seminar/ResSem19")
+#setwd("/Users/julianwossner/Desktop/MBF/Vorlesungen_2._Semester/Research_Seminar_Financial_Economics/Daten/ResSem19")
 #setwd("C:/Users/LST/Documents/Uni/Research Seminar/ResSem19")
 
 
@@ -68,7 +68,63 @@ SMIMdata   <- dataret[,-c(3,4,11,12,15)]  # Includes the SMI Mid as only stock i
 #CHFEURdata <- dataret[,-c(3,4,11,12)] # including SMIM
 CHFEURdata <- dataret # including SMI and SMIM
 
-## Classification: Up / Down --------------------------------------
+## Data --------------------------------------
+allData <- dataret
+
+# Directions: Up / Down
+allData$SMIdir <- as.factor(ifelse(allData$RetSMI > 0, "up", ifelse(allData$RetSMI < 0, "down", "no change" ))) # Including a column with up, down factors
+allData$SMIMdir <- as.factor(ifelse(allData$RetSMIM > 0, "up", ifelse(allData$RetSMIM < 0, "down", "no change" ))) # Including a column with up, down factors
+allData$SPIEXdir <- as.factor(ifelse(allData$RetSPIEX > 0, "up", ifelse(allData$RetSPIEX < 0, "down", "no change" ))) # Including a column with up, down factors
+allData$SDdomBanksdir <- as.factor(ifelse(allData$ChgSDdomBanks > 0, "up", ifelse(allData$ChgSDdomBanks < 0, "down", "no change" )))
+allData$CHFEURdir <- as.factor(ifelse(allData$RetCHFEUR > 0, "up", ifelse(allData$RetCHFEUR < 0, "down", "no change" ))) # Including a column with up, down factors
+
+# Previous Week
+allData$CHFEURprev <- allData$CHFEUR
+allData$CHFEURprev[2:575] <- allData$CHFEURprev[1:574]
+allData$SMIprev <- allData$SMI
+allData$SMIprev[2:575] <- allData$SMIprev[1:574]
+allData$SMIMprev <- allData$SMIMid
+allData$SMIMprev[2:575] <- allData$SMIMprev[1:574]
+allData$SPIEXprev <- allData$SPIEX
+allData$SPIEXprev[2:575] <- allData$SPIEXprev[1:574]
+
+# Next Week & Lag the series to produce forecasts
+allData$SMInext <- allData$SMIdir
+allData$SMInext[1:574] <- allData$SMInext[2:575]
+allData$SMIMnext <- allData$SMIMdir
+allData$SMIMnext[1:574] <- allData$SMIMnext[2:575]
+allData$SPIEXnext <- allData$SPIEXdir
+allData$SPIEXnext[1:574] <- allData$SPIEXnext[2:575]
+allData$CHFEURnext <- allData$CHFEURdir
+allData$CHFEURnext[1:574] <- allData$CHFEURdir[2:575] # CHFEURdata$CHFEURdir[1:574]
+
+# delete first row and the last rows
+allData <-allData[2:556,] 
+
+
+# List of Colums
+basicColumnsIndex <- c("SDofDomBanks","ChgSDdomBanks","SDdomBanksdir","CHFUSD","RetCHFEUR","CHFEUR","CHFEURdir","Gov3yr","Gov10yr","Libor3M_CHF")
+basicColumnsFX    <- c("SDofDomBanks","ChgSDdomBanks","SDdomBanksdir","CHFUSD","Gov3yr","Gov10yr","Libor3M_CHF")
+
+# Indices
+currentSMIColumns   <- c(basicColumnsIndex,"SMIprev","SMIdir")
+currentSMIMColumns  <- c(basicColumnsIndex,"SMIMprev","SMIMdir")
+currentSPIEXColumns <- c(basicColumnsIndex,"SPIEXprev","SPIEXdir")
+
+forecastSMIColumns   <- c(basicColumnsIndex,"SMI","SMInext")
+forecastSMIMColumns  <- c(basicColumnsIndex,"SMIMid","SMIMnext")
+forecastSPIEXColumns <- c(basicColumnsIndex,"SPIEX","SPIEXnext")
+
+# Fx
+currentFxSMIColumns   <- c(basicColumnsFX,"RetSMI","SMI","SMIdir","CHFEURprev","CHFEURdir")
+currentFxSMIMColumns  <- c(basicColumnsFX,"RetSMIMid","SMIMid","SMIMdir","CHFEURprev","CHFEURdir")
+currentFxSPIEXColumns <- c(basicColumnsFX,"RetSPIEX","SPIEX","SPIEXdir","CHFEURprev","CHFEURdir")
+
+forecastFxSMIColumns   <- c(basicColumnsFX,"RetSMI","SMI","SMIdir","CHFEUR","CHFEURnext")
+forecastFxSMIMColumns  <- c(basicColumnsFX,"RetSMIMid","SMIMid","SMIMdir","CHFEUR","CHFEURnext")
+forecastFxSPIEXColumns <- c(basicColumnsFX,"RetSPIEX","SPIEX","SPIEXdir","CHFEUR","CHFEURnext")
+
+### -------------------------------------------
 
 # SMI data
 SMIdata$SMIdir <- as.factor(ifelse(SMIdata$RetSMI > 0, "up", ifelse(SMIdata$RetSMI < 0, "down", "no change" ))) # Including a column with up, down factors
@@ -161,14 +217,15 @@ PostCapPeriod.cor <- cor(DataWoDates[364:575,], method = "spearman") # spearman 
 
 # Functions and Obejcts BEGIN ------------------------------------------
 
-samplingC5 <- function(independentVariables, dependentVariable) {
+samplingC5 <- function(independentVariables, targetVariable) {
     
     sumVariableImportance = setNames(data.frame(matrix(ncol = length(names(independentVariables)), nrow = 1)), names(independentVariables))
     boostTrain = vector() 
     boostTest = vector()
   
-    for (i in 1:100) {
-      model <- C5.0(independentVariables, dependentVariable,
+    for (i in 1:10) {
+      
+      model <- C5.0(independentVariables, targetVariable,
                     rules = TRUE, trials = 10, 
                     control = C5.0Control(sample=0.7))
       #summary(model)
@@ -178,14 +235,16 @@ samplingC5 <- function(independentVariables, dependentVariable) {
       boostRow <- grep("^boost\t", output)
       boostTrain[i] <- gsub(".*\\(|\\).*", "", output[(boostRow[1])])
       boostTest[i] <- gsub(".*\\(|\\).*", "", output[(boostRow[2])])
-      #print(boostTrain[i])
+      print(boostTrain[i])
       
       # parsing Variable Importance 
-      variableImportance <- C5imp(model)
+#      if (is.na(b) == FALSE) {
+        variableImportance <- C5imp(model)
       
-      for (var in model[["predictors"]]) {
-        sumVariableImportance[i,var] = variableImportance[var,]
-      }
+        for (var in model[["predictors"]]) {
+          sumVariableImportance[i,var] = variableImportance[var,]
+        }
+#      }
     }
     orderOfImportance <- sort(colMeans(sumVariableImportance), decreasing = TRUE)
     boostTrain <- as.numeric(sub("%", "", boostTrain[!is.na(boostTrain)]))
@@ -200,20 +259,27 @@ samplingC5 <- function(independentVariables, dependentVariable) {
 
 # -----------------------------------------------------------------
 
-allPeriodsC5 <- function(inputData, exVariables, independentVariable) {
+allPeriodsC5 <- function(inputData, dependentVariable) {
   
-  preData <- inputData[1:185, -exVariables]
-  preTarget <- inputData[1:185, independentVariable]
-  preCap <- samplingC5(preData, preTarget) 
+  # Variable to be determined by C5.0
+  preTarget <- inputData[1:185, dependentVariable]
+  capTarget <- inputData[186:362, dependentVariable]
+  postTarget <- inputData[363:555, dependentVariable]
   
-  capData <- inputData[186:362, -exVariables]
-  capTarget <- inputData[186:362, independentVariable]
-  cap <- samplingC5(capData, capTarget) 
+  # Delete Target variable from input Data
+  inputData[,dependentVariable] <- NULL
   
-  postData <- inputData[363:555, -exVariables]
-  postTarget <- inputData[363:555, independentVariable]  
+  # Define input Data for C5.0
+  preData <- inputData[1:185,]
+  capData <- inputData[186:362,]
+  postData <- inputData[363:555,]
+  
+  # Run C5.0 Sampling for different Periods
+  preCap <- samplingC5(preData,preTarget)
+  cap <- samplingC5(capData, capTarget)
   postCap <- samplingC5(postData, postTarget) 
   
+  # Output of Object
   results <- c(PreCap = preCap, Cap = cap, PostCap = postCap) 
   attr(results, "class") <- "allPeriodsC5"
   results
@@ -223,6 +289,7 @@ allPeriodsC5 <- function(inputData, exVariables, independentVariable) {
 
 outputPrint <- function(output) {
   print(output[c("PreCap.trainError","Cap.trainError","PostCap.trainError")])
+  print(output[c("PreCap.testError","Cap.testError","PostCap.testError")])
   print(output[c("PreCap.varImp.ChgSDdomBanks","Cap.varImp.ChgSDdomBanks","PostCap.varImp.ChgSDdomBanks")])
   print(output[c("PreCap.varImp.SDdomBanksdir","Cap.varImp.SDdomBanksdir","PostCap.varImp.SDdomBanksdir")])
   print(output[c("PreCap.varImp.SDofDomBanks","Cap.varImp.SDofDomBanks","PostCap.varImp.SDofDomBanks")])
@@ -231,32 +298,22 @@ outputPrint <- function(output) {
 # Functions and Obejcts END ------------------------------------------
 
 ## Execution
-dataFX <- CHFEURdata[,-1]
-
-# FX Rate
-
-CHFEURSMIcurrent <- allPeriodsC5(dataFX, c(2,11,17,4,12,16,9,14,19,21), 19)
-CHFEURSMIMcurrent <- allPeriodsC5(dataFX, c(2,11,17,3,10,15,9,14,19,21), 19)
-CHFEURSPIEXcurrent <- allPeriodsC5(dataFX, c(3,10,15,4,12,16,9,14,19,21), 19)
-
-CHFEURSMInext <- allPeriodsC5(dataFX, c(2,11,17,4,12,16,20,21), 21)
-CHFEURSMIMnext <- allPeriodsC5(dataFX, c(2,11,17,3,10,15,20,21), 19)
-CHFEURSPIEXnext <- allPeriodsC5(dataFX, c(3,10,15,4,12,16,20,21), 19)
-
-outputPrint(CHFEURSMIMcurrent)
 
 # Indices
 
-CHFEURSMIcurrent <- allPeriodsC5(dataFX, c(2,11,17,4,12,16,9,14,19,21), 19)
-CHFEURSMIMcurrent <- allPeriodsC5(dataFX, c(2,11,17,3,10,15,9,14,19,21), 19)
-CHFEURSPIEXcurrent <- allPeriodsC5(dataFX, c(3,10,15,4,12,16,9,14,19,21), 19)
+currentSMI   <- allPeriodsC5(allData[currentSMIColumns], "SMIdir")
+currentSMIM  <- allPeriodsC5(allData[currentSMIMColumns], "SMIMdir")
+currentSPIEX <- allPeriodsC5(allData[currentSPIEXColumns], "SPIEXdir")
 
-CHFEURSMInext <- allPeriodsC5(dataFX, c(2,11,17,4,12,16,20,21), 21)
-CHFEURSMIMnext <- allPeriodsC5(dataFX, c(2,11,17,3,10,15,20,21), 19)
-CHFEURSPIEXnext <- allPeriodsC5(dataFX, c(3,10,15,4,12,16,20,21), 19)
+forecastSMI   <- allPeriodsC5(allData[forecastSMIColumns], "SMInext")
+forecastSMIM  <- allPeriodsC5(allData[forecastSMIMColumns], "SMIMnext")
+forecastSPIEX <- allPeriodsC5(allData[forecastSPIEXColumns], "SPIEXnext")
 
+outputPrint(currentSMIM)
 
-outputPrint(CHFEURSMIMcurrent)
+# FX Rate
+
+currentFxSMI <- ....
 
 
 # SMI Stock indice --------------------------------------
