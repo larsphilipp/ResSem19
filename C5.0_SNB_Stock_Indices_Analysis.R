@@ -158,105 +158,106 @@ PostCapPeriod.cor <- cor(DataWoDates[364:575,], method = "spearman") # spearman 
 
 
 ## Data extention & C50 algorithm --------------------------------------
-# Using C5.0 algorithm
-# Defining the Periods for the three stock indices
-# Three Periods: Before, During and Post Cap (row 363 is the 16th of Jan, i.e. 1 day after the removal of the Cap, row 187 is the 2nd september, i.e. 4 days before the introduction of the cap)
-PreCapPeriod.CHFEUR <- CHFEURdata[1:185,-1] # Data set from 2008 - 02 - 08 to 2011 - 08 - 26 (PreCapPeriod phase)
-CapPeriod.CHFEUR <- CHFEURdata[186:362,-1] # Data set from 2011 - 09 - 02 to 2015 - 01 - 15 (CapPeriod phase)
-PostCapPeriod.CHFEUR <- CHFEURdata[363:555,-1]
 
+# Functions and Obejcts BEGIN ------------------------------------------
 
-# Sampling Object --------------------------------------------------
-samplingC5 <- function(inputData, dependentVariable, trainShare) {
-  sumVariableImportance = setNames(data.frame(matrix(ncol = length(names(inputData)), nrow = 1)), names(inputData))
-  boostTrain = vector() 
-  boostTest = vector()
+samplingC5 <- function(independentVariables, dependentVariable) {
+    
+    sumVariableImportance = setNames(data.frame(matrix(ncol = length(names(independentVariables)), nrow = 1)), names(independentVariables))
+    boostTrain = vector() 
+    boostTest = vector()
   
-  for (i in 1:100) {
-    model <- C5.0(inputData, dependentVariable,
-                  rules = TRUE, trials = 10, 
-                  control = C5.0Control(sample=trainShare))
-    #summary(model)
-    
-    # parsing Boost Error Value
-    output <- strsplit(model[["output"]], "\n")[[1]]
-    boostRow <- grep("^boost\t", output)
-    boostTrain[i] <- gsub(".*\\(|\\).*", "", output[(boostRow[1])])
-    boostTest[i] <- gsub(".*\\(|\\).*", "", output[(boostRow[2])])
-    #print(boostTrain[i])
-    
-    # parsing Variable Importance 
-    variableImportance <- C5imp(model)
-    
-    for (var in model[["predictors"]]) {
-      sumVariableImportance[i,var] = variableImportance[var,]
+    for (i in 1:100) {
+      model <- C5.0(independentVariables, dependentVariable,
+                    rules = TRUE, trials = 10, 
+                    control = C5.0Control(sample=0.7))
+      #summary(model)
+      
+      # parsing Boost Error Value
+      output <- strsplit(model[["output"]], "\n")[[1]]
+      boostRow <- grep("^boost\t", output)
+      boostTrain[i] <- gsub(".*\\(|\\).*", "", output[(boostRow[1])])
+      boostTest[i] <- gsub(".*\\(|\\).*", "", output[(boostRow[2])])
+      #print(boostTrain[i])
+      
+      # parsing Variable Importance 
+      variableImportance <- C5imp(model)
+      
+      for (var in model[["predictors"]]) {
+        sumVariableImportance[i,var] = variableImportance[var,]
+      }
     }
-  }
-  orderOfImportance <- sort(colMeans(sumVariableImportance), decreasing = TRUE)
-  boostTrain <- as.numeric(sub("%", "", boostTrain[!is.na(boostTrain)]))
-  boostTest  <- as.numeric(sub("%", "", boostTest[!is.na(boostTest)]))
-  meanBoostTrain <- mean(boostTrain)
-  meanBoostTest  <- mean(boostTest)
+    orderOfImportance <- sort(colMeans(sumVariableImportance), decreasing = TRUE)
+    boostTrain <- as.numeric(sub("%", "", boostTrain[!is.na(boostTrain)]))
+    boostTest  <- as.numeric(sub("%", "", boostTest[!is.na(boostTest)]))
+    meanBoostTrain <- mean(boostTrain)
+    meanBoostTest  <- mean(boostTest)
+    
+    results <- c(trainError = meanBoostTrain, testError = meanBoostTest, varImp = orderOfImportance) 
+    attr(results, "class") <- "samplingC5"
+    results
+}
+
+# -----------------------------------------------------------------
+
+allPeriodsC5 <- function(inputData, exVariables, independentVariable) {
   
-  results <- c(trainError = meanBoostTrain, testError = meanBoostTest, varImp = orderOfImportance) 
-  attr(results, "class") <- "samplingC5"
+  preData <- inputData[1:185, -exVariables]
+  preTarget <- inputData[1:185, independentVariable]
+  preCap <- samplingC5(preData, preTarget) 
+  
+  capData <- inputData[186:362, -exVariables]
+  capTarget <- inputData[186:362, independentVariable]
+  cap <- samplingC5(capData, capTarget) 
+  
+  postData <- inputData[363:555, -exVariables]
+  postTarget <- inputData[363:555, independentVariable]  
+  postCap <- samplingC5(postData, postTarget) 
+  
+  results <- c(PreCap = preCap, Cap = cap, PostCap = postCap) 
+  attr(results, "class") <- "allPeriodsC5"
   results
 }
-# -----------------------------------------------------------------
-## This week is forecasted using current data and last weeks chfeur
-# -> ok results for looking at the exchange rate as a pattern of current 
-# (same point in time) financial market parameters and itself(lag 1) 
-trainShare <- 0.7
-samplingCapPeriodCHFEUR <- samplingC5(CapPeriod.CHFEUR[-c(9,14,19)], CapPeriod.CHFEUR$CHFEURdir, trainShare) 
-print(samplingCapPeriodCHFEUR)
-#samplingCapPeriodCHFEUR["trainError"]
 
-samplingPreCHFEURSMI <- samplingC5(PreCapPeriod.CHFEUR[-c(2,11,17,4,12,16,9,14,19,21)], PreCapPeriod.CHFEUR$CHFEURdir, trainShare) 
-print(samplingPreCHFEURSMI)
-samplingCapCHFEURSMI <- samplingC5(CapPeriod.CHFEUR[-c(2,11,17,4,12,16,9,14,19,21)], CapPeriod.CHFEUR$CHFEURdir, trainShare) 
-print(samplingCapCHFEURSMI)
-samplingPostCHFEURSMI <- samplingC5(PostCapPeriod.CHFEUR[-c(2,11,17,4,12,16,9,14,19,21)], PostCapPeriod.CHFEUR$CHFEURdir, trainShare) 
-print(samplingPostCHFEURSMI)
+# ---------------------------------------------------------------------
 
-samplingPreCHFEURSMIM <- samplingC5(PreCapPeriod.CHFEUR[-c(2,11,17,3,10,15,9,14,19,21)], PreCapPeriod.CHFEUR$CHFEURdir, trainShare) 
-print(samplingPreCHFEURSMIM)
-samplingCapCHFEURSMIM <- samplingC5(CapPeriod.CHFEUR[-c(2,11,17,3,10,15,9,14,19,21)], CapPeriod.CHFEUR$CHFEURdir, trainShare) 
-print(samplingCapCHFEURSMIM)
-samplingPostCHFEURSMIM <- samplingC5(PostCapPeriod.CHFEUR[-c(2,11,17,3,10,15,9,14,19,21)], PostCapPeriod.CHFEUR$CHFEURdir, trainShare) 
-print(samplingPostCHFEURSMIM)
+outputPrint <- function(output) {
+  print(output[c("PreCap.trainError","Cap.trainError","PostCap.trainError")])
+  print(output[c("PreCap.varImp.ChgSDdomBanks","Cap.varImp.ChgSDdomBanks","PostCap.varImp.ChgSDdomBanks")])
+  print(output[c("PreCap.varImp.SDdomBanksdir","Cap.varImp.SDdomBanksdir","PostCap.varImp.SDdomBanksdir")])
+  print(output[c("PreCap.varImp.SDofDomBanks","Cap.varImp.SDofDomBanks","PostCap.varImp.SDofDomBanks")])
+}
 
-samplingPreCHFEURSPIEX <- samplingC5(PreCapPeriod.CHFEUR[-c(3,10,15,4,12,16,9,14,19,21)], PreCapPeriod.CHFEUR$CHFEURdir, trainShare) 
-print(samplingPreCHFEURSPIEX)
-samplingCapPeriodCHFEURSPIEX <- samplingC5(CapPeriod.CHFEUR[-c(3,10,15,4,12,16,9,14,19,21)], CapPeriod.CHFEUR$CHFEURdir, trainShare) 
-print(samplingCapPeriodCHFEURSPIEX)
-samplingPostCHFEURSPIEX <- samplingC5(PostCapPeriod.CHFEUR[-c(3,10,15,4,12,16,9,14,19,21)], PostCapPeriod.CHFEUR$CHFEURdir, trainShare) 
-print(samplingPostCHFEURSPIEX)
+# Functions and Obejcts END ------------------------------------------
+
+## Execution
+dataFX <- CHFEURdata[,-1]
+
+# FX Rate
+
+CHFEURSMIcurrent <- allPeriodsC5(dataFX, c(2,11,17,4,12,16,9,14,19,21), 19)
+CHFEURSMIMcurrent <- allPeriodsC5(dataFX, c(2,11,17,3,10,15,9,14,19,21), 19)
+CHFEURSPIEXcurrent <- allPeriodsC5(dataFX, c(3,10,15,4,12,16,9,14,19,21), 19)
+
+CHFEURSMInext <- allPeriodsC5(dataFX, c(2,11,17,4,12,16,20,21), 21)
+CHFEURSMIMnext <- allPeriodsC5(dataFX, c(2,11,17,3,10,15,20,21), 19)
+CHFEURSPIEXnext <- allPeriodsC5(dataFX, c(3,10,15,4,12,16,20,21), 19)
+
+outputPrint(CHFEURSMIMcurrent)
+
+# Indices
+
+CHFEURSMIcurrent <- allPeriodsC5(dataFX, c(2,11,17,4,12,16,9,14,19,21), 19)
+CHFEURSMIMcurrent <- allPeriodsC5(dataFX, c(2,11,17,3,10,15,9,14,19,21), 19)
+CHFEURSPIEXcurrent <- allPeriodsC5(dataFX, c(3,10,15,4,12,16,9,14,19,21), 19)
+
+CHFEURSMInext <- allPeriodsC5(dataFX, c(2,11,17,4,12,16,20,21), 21)
+CHFEURSMIMnext <- allPeriodsC5(dataFX, c(2,11,17,3,10,15,20,21), 19)
+CHFEURSPIEXnext <- allPeriodsC5(dataFX, c(3,10,15,4,12,16,20,21), 19)
 
 
-###  Next week is forecasted using current data
-# ->not great results and asssumption of signal (forecast one week after 
-# publication) and lag one influence of financial parameter
-samplingPreCHFEURSMI <- samplingC5(PreCapPeriod.CHFEUR[-c(2,11,17,4,12,16,20,21)], PreCapPeriod.CHFEUR$CHFEURnext, trainShare) 
-print(samplingPreCHFEURSMI)
-samplingCapCHFEURSMI <- samplingC5(CapPeriod.CHFEUR[-c(2,11,17,4,12,16,20,21)], CapPeriod.CHFEUR$CHFEURnext, trainShare) 
-print(samplingCapCHFEURSMI)
-samplingPostCHFEURSMI <- samplingC5(PostCapPeriod.CHFEUR[-c(2,11,17,4,12,16,20,21)], PostCapPeriod.CHFEUR$CHFEURnext, trainShare) 
-print(samplingPostCHFEURSMI)
+outputPrint(CHFEURSMIMcurrent)
 
-samplingPreCHFEURSMIM <- samplingC5(PreCapPeriod.CHFEUR[-c(2,11,17,3,10,15,20,21)], PreCapPeriod.CHFEUR$CHFEURnext, trainShare) 
-print(samplingPreCHFEURSMIM)
-samplingCapCHFEURSMIM <- samplingC5(CapPeriod.CHFEUR[-c(2,11,17,3,10,15,20,21)], CapPeriod.CHFEUR$CHFEURnext, trainShare) 
-print(samplingCapCHFEURSMIM)
-samplingPostCHFEURSMIM <- samplingC5(PostCapPeriod.CHFEUR[-c(2,11,17,3,10,15,9,21)], PostCapPeriod.CHFEUR$CHFEURnext, trainShare) 
-print(samplingPostCHFEURSMIM)
-
-samplingPreCHFEURSPIEX <- samplingC5(PreCapPeriod.CHFEUR[-c(3,10,15,4,12,16,9,14,19,20,21)], PreCapPeriod.CHFEUR$CHFEURnext, trainShare) 
-print(samplingPreCHFEURSPIEX)
-samplingCapPeriodCHFEURSPIEX <- samplingC5(CapPeriod.CHFEUR[-c(3,10,15,4,12,16,9,14,19,20)], CapPeriod.CHFEUR$CHFEURnext, trainShare) 
-print(samplingCapPeriodCHFEURSPIEX)
-samplingPostCHFEURSPIEX <- samplingC5(PostCapPeriod.CHFEUR[-c(3,10,15,4,12,16,9,14,19,20)], PostCapPeriod.CHFEUR$CHFEURnext, trainShare) 
-print(samplingPostCHFEURSPIEX)
-########################### --------------------------
 
 # SMI Stock indice --------------------------------------
 # Defining the Periods for the three stock indices
