@@ -173,9 +173,10 @@ accuracy.SMI <- function(noSim){
   m.SMI <- matrix(NA,noSim,3)
   colnames(m.SMI) <- c("PreCap", "Cap", "PostCap")
   pb <- txtProgressBar(0, noSim, style = 3)
+  seed <- 12
   for (i in 1:noSim){ 
     setTxtProgressBar(pb, i)
-
+  set.seed(seed)
 # Training set
 smp_size <- floor(0.70*nrow(PreCapPeriod.SMI)) # Sample size
 train_rows <- sample(seq_len(nrow(PreCapPeriod.SMI)), size = smp_size) # sampling rows
@@ -215,6 +216,7 @@ accuracy.SMI.PostCap <- sum(SMI.prediction.PostCap == PostCapPeriod.SMI.test$SMI
   m.SMI[i,2] <- accuracy.SMI.Cap
   m.SMI[i,3] <- accuracy.SMI.PostCap
 
+  seed = seed + 1 # adjusting seed
   }
   close(pb)
 
@@ -260,7 +262,9 @@ accuracy.SPIEX <- function(noSim){
   m.SPIEX <- matrix(NA,noSim,3)
   colnames(m.SPIEX) <- c("PreCap", "Cap", "PostCap")
   pb <- txtProgressBar(0, noSim, style = 3)
+  seed <- 12
   for (i in 1:noSim){ 
+    set.seed(seed)
     setTxtProgressBar(pb, i)
     
     # Training set
@@ -302,6 +306,7 @@ accuracy.SPIEX <- function(noSim){
     m.SPIEX[i,2] <- accuracy.SPIEX.Cap
     m.SPIEX[i,3] <- accuracy.SPIEX.PostCap
     
+    seed <- seed + 1
   }
   close(pb)
 
@@ -350,7 +355,9 @@ accuracy.SMIM <- function(noSim){
   m.SMIM <- matrix(NA,noSim,3)
   colnames(m.SMIM) <- c("PreCap", "Cap", "PostCap")
   pb <- txtProgressBar(0, noSim, style = 3)
+  seed <- 12
   for (i in 1:noSim){ 
+    set.seed(seed)
     setTxtProgressBar(pb, i)
     
     # Training set
@@ -392,6 +399,7 @@ accuracy.SMIM <- function(noSim){
     m.SMIM[i,2] <- accuracy.SMIM.Cap
     m.SMIM[i,3] <- accuracy.SMIM.PostCap
     
+    seed = seed + 1
   }
   close(pb)
 
@@ -491,7 +499,45 @@ SMIM.moments <- function(noSim){
   
 # Calculation of the four moments for the three indices with mean, sd, skew and kurt and summary of mean predictions
 
-Accuracy.models(100) # Summary of the mean predictions of for the three models and the three time periods
+Accuracy.models(1000) # Summary of the mean predictions of for the three models and the three time periods
+
+# Significance testing of the difference between the mean prediction averages --------------------------------
+
+# SMI stock ------------------------------
+m.SMI <- accuracy.SMI(100)
+
+SMI1 <- m.SMI[,1]
+SMI2 <- m.SMI[,2]
+SMI3 <- m.SMI[,3]
+# PreCap and Cap period
+t.test(SMI1,SMI2)
+# Cap and PostCap period
+t.test(SMI2, SMI3)
+
+# SPIEX stock ---------------------
+m.SPIEX <- accuracy.SPIEX(100)
+
+SPIEX1 <- m.SPIEX[,1]
+SPIEX2 <- m.SPIEX[,2]
+SPIEX3 <- m.SPIEX[,3]
+# PreCap and Cap period
+t.test(SPIEX1,SPIEX2)
+# Cap and PostCap period
+t.test(SPIEX2, SPIEX3)
+
+
+# SMI stock
+m.SMIM <- accuracy.SMIM(100)
+
+SMIM1 <- m.SMIM[,1]
+SMIM2 <- m.SMIM[,2]
+SMIM3 <- m.SMIM[,3]
+# PreCap and Cap period
+t.test(SMIM1,SMIM2)
+# Cap and PostCap period
+t.test(SMIM2, SMIM3)
+
+
 
 SMI.moments(100) # Moments of SMI predictions
 SPIEX.moments(100) # Moments of SPIEX predictions
@@ -524,3 +570,6 @@ m.SMIM <- accuracy.SMIM(100)  # Capturing all predictions for the SMIM for the t
 plot(density(m.SMIM[,1]), main = "Density of the PreCap predictions for the SMIM") # Density of PreCap predictions
 plot(density(m.SMIM[,2]), main = "Density of the PreCap predictions for the SMIM") # Density of Cap predictions
 plot(density(m.SMIM[,3]), main = "Density of the PreCap predictions for the SMIM") # Density of PostCap Predictions
+
+
+
