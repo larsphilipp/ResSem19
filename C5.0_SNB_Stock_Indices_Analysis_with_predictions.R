@@ -228,14 +228,17 @@ accuracy.SMI.PostCap <- sum(SMI.prediction.PostCap == PostCapPeriod.SMI.test$SMI
 # PreCap Period
 PreCap.model.SMI <- C5.0(PreCapPeriod.SMI[-12], PreCapPeriod.SMI$SMI.FC, rules = TRUE, trials = 100)
 summary(PreCap.model.SMI) # SDdomBanksdir 9.14%, SDdomBanks 9.14%
+print(xtable(C5imp(PreCap.model.SMI, metric = "splits"),"latex"))
 
 # Cap Period
 Cap.model.SMI <- C5.0(CapPeriod.SMI[-12], CapPeriod.SMI$SMI.FC, rules = TRUE, trials = 100)
 summary(Cap.model.SMI) # 100% SDdomBanksdir, 100% ChgSDdomBanks, 18.08% SDofDomBanks
+print(xtable(C5imp(Cap.model.SMI, metric = "splits"),"latex"))
 
 # PostCap Period
 PostCap.model.SMI <- C5.0(PostCapPeriod.SMI[-12], PostCapPeriod.SMI$SMI.FC, rules = TRUE, trials = 100)
 summary(PostCap.model.SMI) # 9.91% SDdomBanksdir
+print(xtable(C5imp(PostCap.model.SMI, metric = "splits"),"latex"))
 
 
 
@@ -320,14 +323,16 @@ accuracy.SPIEX <- function(noSim){
 # PreCap Period
 PreCap.model.SPIEX <- C5.0(PreCapPeriod.SPIEX[-12], PreCapPeriod.SPIEX$SPIEX.FC, rules = TRUE, trials = 100)
 summary(PreCap.model.SPIEX) # ChgSDdomBanks 52.15% SDdomBanksdir 17.20%, SDofDomBanks 2.69%
-
+print(xtable(C5imp(PreCap.model.SPIEX, metric = "splits"),"latex"))
 # Cap Period
 Cap.model.SPIEX <- C5.0(CapPeriod.SPIEX[-12], CapPeriod.SPIEX$SPIEX.FC, rules = TRUE, trials = 100)
 summary(Cap.model.SPIEX) # 48.59%% SDdomBanksdir, 2.82% SDdomBanksdir
+print(xtable(C5imp(Cap.model.SPIEX, metric = "splits"),"latex"))
 
 # PostCap Period
 PostCap.model.SPIEX <- C5.0(PostCapPeriod.SPIEX[-12], PostCapPeriod.SPIEX$SPIEX.FC, rules = TRUE, trials = 100)
 summary(PostCap.model.SPIEX) # no usage of SNB parameters
+print(xtable(C5imp(PostCap.model.SPIEX, metric = "splits"),"latex"))
 
 
 
@@ -409,15 +414,15 @@ accuracy.SMIM <- function(noSim){
 # PreCapPeriod Model describing SMI mid Forecast (column 12)
 PreCapPeriod.SMIM.model <- C5.0(PreCapPeriod.SMIM[-12], PreCapPeriod.SMIM$SMIM.FC, rules = TRUE)
 summary(PreCapPeriod.SMIM.model) # 100% SDofDomBanks, 19.89% SDdomBanksdir
-
+print(xtable(C5imp(PreCapPeriod.SMIM.model, metric = "splits"),"latex"))
 # CapPeriod Model describing SMI mid Forecast (column 12)
 CapPeriod.SMIM.model <- C5.0(CapPeriod.SMIM[-12], CapPeriod.SMIM$SMIM.FC, rules = TRUE, trials = 100)
-summary(CapPeriod.SMIM.model) # 48.02% SDdomBanksdir, 2.82% ChgSDdomBanks
-
+summary(Period.SMIM.model) # 48.02% SDdomBanksdir, 2.82% ChgSDdomBanks
+print(xtable(C5imp(PreCapPeriod.SMIM.model, metric = "splits"),"latex"))
 # PostCapPeriod Model describing SMI mid Forecast (column 12)
 PostCapPeriod.SMIM.model <- C5.0(PostCapPeriod.SMIM[-12], PostCapPeriod.SMIM$SMIM.FC,rules = TRUE, trials = 100)
 summary(PostCapPeriod.SMIM.model) # 7.08% ChgSDdomBanks, 7.08% SDdomBanksdir
-
+print(xtable(C5imp(PostCapPeriod.SMIM.model, metric = "splits"),"latex"))
 
 # Summarizing the accuracy results for the three models and the three time periods ----------------------------
 
