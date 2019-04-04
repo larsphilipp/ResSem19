@@ -17,7 +17,7 @@ library(huxtable)
 library(zoo)
 library(ggplot2)
 library(psych)
-
+library(xtable)
 # setting working directory
 getwd()
 #setwd("C:/Users/Lars Stauffenegger/Documents/MBF Unisg/Research Seminar/ResSem19")
@@ -97,12 +97,12 @@ SMIMdata <-SMIMdata[-575,] # delete the last row
 ## Plotting and descriptive statistics --------------------------------------
 # Indices
 pdf("plot_SD_ExchangeRate.pdf", height = 20, width = 15)
-par(mfrow = c(5,1))
+par(mfrow = c(4,1))
 plot(dataind04$Date, dataind04$SNBSD,  type = "l", xlab = "Date", ylab = "Index", main = "SNB Sight Deposits (in Mio. CHF)") # SNB Sight Deposits
 plot(dataind04$Date, dataind04$CHF.EUR,  type = "l", xlab = "Date", ylab = "Index", main = "CHF/EUR Exchange rate") # CHF/EUR Exchange rate
 plot(dataind04$Date, dataind04$SMI, type = "l", xlab = "Date", ylab = "Index", main = "SMI") # SMI
 plot(dataind04$Date, dataind04$SPIEX,  type = "l", xlab = "Date", ylab = "Index", main = "SPI Extra") # SPI Extra
-plot(dataind04$Date, dataind04$SMI.Mid,  type = "l", xlab = "Date", ylab = "Index", main = "SMI Mid") # SMI Mid
+#plot(dataind04$Date, dataind04$SMI.Mid,  type = "l", xlab = "Date", ylab = "Index", main = "SMI Mid") # SMI Mid
 dev.off()
 
 # Descriptive statistics
@@ -427,17 +427,17 @@ print(xtable(C5imp(PostCapPeriod.SMIM.model, metric = "splits"),"latex"))
 # Summarizing the accuracy results for the three models and the three time periods ----------------------------
 
 Accuracy.models <- function(noSim){
-  temp <- matrix(NA, 3, 3)
+  temp <- matrix(NA, 2, 3)
   m.SMI <- accuracy.SMI(noSim)
   m.SPIEX <- accuracy.SPIEX(noSim)
-  m.SMIM <- accuracy.SMIM(noSim)
+ # m.SMIM <- accuracy.SMIM(noSim)
   
   temp[1,] <- apply(m.SMI, 2, mean)
   temp[2,] <- apply(m.SPIEX, 2, mean)
-  temp[3,] <- apply(m.SMIM, 2, mean)
+  #temp[3,] <- apply(m.SMIM, 2, mean)
   
   colnames(temp) <- c("PreCap", "Cap", "Postcap")
-  rownames(temp) <- c("SMI", "SPIEX", "SMIM")
+  rownames(temp) <- c("SMI", "SPIEX")
   names(dimnames(temp)) <- list("", "Mean predictions")
   temp
 }
@@ -508,31 +508,28 @@ Accuracy.models(1000) # Summary of the mean predictions of for the three models 
 
 # Significance testing of the difference between the mean prediction averages --------------------------------
 
-# SMI stock ------------------------------
-m.SMI <- accuracy.SMI(100)
-
+# SMI stock and SPIEX stock------------------------------
+m.SMI <- accuracy.SMI(1000)
 SMI1 <- m.SMI[,1]
 SMI2 <- m.SMI[,2]
 SMI3 <- m.SMI[,3]
-# PreCap and Cap period
-t.test(SMI1,SMI2)
-# Cap and PostCap period
-t.test(SMI2, SMI3)
 
-# SPIEX stock ---------------------
-m.SPIEX <- accuracy.SPIEX(100)
-
+m.SPIEX <- accuracy.SPIEX(1000)
 SPIEX1 <- m.SPIEX[,1]
 SPIEX2 <- m.SPIEX[,2]
 SPIEX3 <- m.SPIEX[,3]
-# PreCap and Cap period
-t.test(SPIEX1,SPIEX2)
-# Cap and PostCap period
-t.test(SPIEX2, SPIEX3)
+
+# PreCap period
+t.test(SMI1, SPIEX1)
+# Cap period
+t.test(SMI2, SPIEX2)
+# PostCap period
+t.test(SMI3, SPIEX3)
+
 
 
 # SMI stock
-m.SMIM <- accuracy.SMIM(100)
+m.SMIM <- accuracy.SMIM(1000)
 
 SMIM1 <- m.SMIM[,1]
 SMIM2 <- m.SMIM[,2]
@@ -543,23 +540,31 @@ t.test(SMIM1,SMIM2)
 t.test(SMIM2, SMIM3)
 
 
+SMImom <- SMI.moments(1000) # Moments of SMI predictions
+SPIEXmom <- SPIEX.moments(1000) # Moments of SPIEX predictions
+SMIMmom <- SMIM.moments(1000) # Moments of SMIM predictions
 
-SMI.moments(100) # Moments of SMI predictions
-SPIEX.moments(100) # Moments of SPIEX predictions
-SMIM.moments(100) # Moments of SMIM predictions
+print(xtable(SMImom, "latex"))
+print(xtable(SPIEXmom, "latex"))
 
+# Table for the paper with the prediction values ---------------------------
 
+print(xtable(Accuracy.models(1000), "latex"))
 
 
 # Distribution of the prediction accuracies -------------------------
 
 # SMI ------------------------------------
 m.SMI <- accuracy.SMI(100) # Capturing all predictions for the SMI for the three periods
-
+pdf("plot_dist_stocks.pdf", height = 20, width = 15)
+par(mfrow = c(2,3))
 plot(density(m.SMI[,1]), main = "Density of the PreCap predictions for the SMI") # Density of PreCap predictions
 plot(density(m.SMI[,2]), main = "Density of the PreCap predictions for the SMI") # Density of Cap predictions
 plot(density(m.SMI[,3]), main = "Density of the PreCap predictions for the SMI") # Density of PostCap Predictions
-
+plot(density(m.SPIEX[,1]), main = "Density of the PreCap predictions for the SPIEX") # Density of PreCap predictions
+plot(density(m.SPIEX[,2]), main = "Density of the PreCap predictions for the SPIEX") # Density of Cap predictions
+plot(density(m.SPIEX[,3]), main = "Density of the PreCap predictions for the SPIEX") # Density of PostCap Predictions
+dev.off()
 
 # SPIEX ------------------------------------
 m.SPIEX <- accuracy.SPIEX(100)  # Capturing all predictions for the SPIEX for the three periods
@@ -575,6 +580,4 @@ m.SMIM <- accuracy.SMIM(100)  # Capturing all predictions for the SMIM for the t
 plot(density(m.SMIM[,1]), main = "Density of the PreCap predictions for the SMIM") # Density of PreCap predictions
 plot(density(m.SMIM[,2]), main = "Density of the PreCap predictions for the SMIM") # Density of Cap predictions
 plot(density(m.SMIM[,3]), main = "Density of the PreCap predictions for the SMIM") # Density of PostCap Predictions
-
-
 
