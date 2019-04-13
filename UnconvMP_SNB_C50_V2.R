@@ -51,7 +51,6 @@ str(dataind08)
 # Stock data
 RetSMI <-  diff(log(dataind08$SMI)) # Weekly returns of the SMI
 RetSPIEX <- diff(log(dataind08$SPIEX)) # Weekly returns of the SPIEX
-RetSMIMid <- diff(log(dataind08$SMIMid)) # Weekly returns of the SMIMid
 RetCHFEUR <- diff(log(dataind08$CHFEUR)) # Weekly returns of the SMIMid
 
 # SNB Data
@@ -59,7 +58,7 @@ ChgSDdomBanks <- diff(dataind08$SDofDomBanks)/dataind08$SDofDomBanks[-length(dat
 
 # Creating Returns data set
 dataret <- dataind08[-1,]
-dataret <- cbind(dataret, RetSMI, RetSPIEX, RetSMIMid, ChgSDdomBanks, RetCHFEUR) # adding percent changes to the data set
+dataret <- cbind(dataret, RetSMI, RetSPIEX, ChgSDdomBanks, RetCHFEUR) # adding percent changes to the data set
 CHFEURdata <- dataret # including SMI and SMIM
 
 ## Data --------------------------------------
@@ -67,7 +66,6 @@ allData <- dataret
 
 # Directions: Up / Down
 allData$SMIdir <- as.factor(ifelse(allData$RetSMI > 0, "up", ifelse(allData$RetSMI < 0, "down", "no change" ))) # Including a column with up, down factors
-allData$SMIMdir <- as.factor(ifelse(allData$RetSMIM > 0, "up", ifelse(allData$RetSMIM < 0, "down", "no change" ))) # Including a column with up, down factors
 allData$SPIEXdir <- as.factor(ifelse(allData$RetSPIEX > 0, "up", ifelse(allData$RetSPIEX < 0, "down", "no change" ))) # Including a column with up, down factors
 allData$SDdomBanksdir <- as.factor(ifelse(allData$ChgSDdomBanks > 0, "up", ifelse(allData$ChgSDdomBanks < 0, "down", "no change" )))
 allData$CHFEURdir <- as.factor(ifelse(allData$RetCHFEUR > 0, "up", ifelse(allData$RetCHFEUR < 0, "down", "no change" ))) # Including a column with up, down factors
@@ -77,16 +75,12 @@ allData$CHFEURprev <- allData$CHFEUR
 allData$CHFEURprev[2:575] <- allData$CHFEURprev[1:574]
 allData$SMIprev <- allData$SMI
 allData$SMIprev[2:575] <- allData$SMIprev[1:574]
-allData$SMIMprev <- allData$SMIMid
-allData$SMIMprev[2:575] <- allData$SMIMprev[1:574]
 allData$SPIEXprev <- allData$SPIEX
 allData$SPIEXprev[2:575] <- allData$SPIEXprev[1:574]
 
 # Next Week & Lag the series to produce forecasts
 allData$SMInext <- allData$SMIdir
 allData$SMInext[1:574] <- allData$SMInext[2:575]
-allData$SMIMnext <- allData$SMIMdir
-allData$SMIMnext[1:574] <- allData$SMIMnext[2:575]
 allData$SPIEXnext <- allData$SPIEXdir
 allData$SPIEXnext[1:574] <- allData$SPIEXnext[2:575]
 allData$CHFEURnext <- allData$CHFEURdir
@@ -102,22 +96,13 @@ restrictedColumnsIndex <- c("SDofDomBanks","SDdomBanksdir","CHFUSD","CHFEUR","CH
 
 # Indices
 currentSMIColumns   <- c(basicColumnsIndex,"SMIprev","SMIdir")
-currentSMIMColumns  <- c(basicColumnsIndex,"SMIMprev","SMIMdir")
 currentSPIEXColumns <- c(basicColumnsIndex,"SPIEXprev","SPIEXdir")
 currentRestrictedSMIColumns   <- c(restrictedColumnsIndex,"SMIprev","SMIdir")
-
-forecastSMIColumns   <- c(basicColumnsIndex,"SMI","SMInext")
-forecastSMIMColumns  <- c(basicColumnsIndex,"SMIMid","SMIMnext")
-forecastSPIEXColumns <- c(basicColumnsIndex,"SPIEX","SPIEXnext")
+currentRestrictedSPIEXColumns   <- c(restrictedColumnsIndex,"SPIEXprev","SPIEXdir")
 
 # Fx
 currentFxSMIColumns   <- c(basicColumnsFX,"RetSMI","SMI","SMIdir","CHFEURprev","CHFEURdir")
-currentFxSMIMColumns  <- c(basicColumnsFX,"RetSMIMid","SMIMid","SMIMdir","CHFEURprev","CHFEURdir")
 currentFxSPIEXColumns <- c(basicColumnsFX,"RetSPIEX","SPIEX","SPIEXdir","CHFEURprev","CHFEURdir")
-
-forecastFxSMIColumns   <- c(basicColumnsFX,"RetSMI","SMI","SMIdir","CHFEUR","CHFEURnext")
-forecastFxSMIMColumns  <- c(basicColumnsFX,"RetSMIMid","SMIMid","SMIMdir","CHFEUR","CHFEURnext")
-forecastFxSPIEXColumns <- c(basicColumnsFX,"RetSPIEX","SPIEX","SPIEXdir","CHFEUR","CHFEURnext")
 
 ## Data extention & C50 algorithm --------------------------------------
 
@@ -149,7 +134,7 @@ samplingC5 <- function(independentVariables, targetVariable, sampleSize) {
         #print(boostTest[i])
       
         # parsing Variable Importance 
-        variableImportance <- C5imp(model,metric = "usage") # splits
+        variableImportance <- C5imp(model,metric = "splits") # splits usage
       
         for (var in model[["predictors"]])
         {
@@ -170,9 +155,6 @@ samplingC5 <- function(independentVariables, targetVariable, sampleSize) {
     attr(results, "class") <- "samplingC5"
     results
 }
-
-# -----------------------------------------------------------------
-
 
 # -----------------------------------------------------------------
 
@@ -202,6 +184,7 @@ allPeriodsC5 <- function(inputData, dependentVariable, sampleSize) {
   results
 }
 
+# -----------------------------------------------------------------
 
 interventionC5 <- function(inputData, dependentVariable, interventionThreshold, sampleSize, typeOfThreshold) {
   
@@ -266,6 +249,8 @@ outputPrint <- function(output) {
   print(output[c("PreCap.varImp.SDofDomBanks","Cap.varImp.SDofDomBanks","PostCap.varImp.SDofDomBanks")])
 }
 
+# -----------------------------------------------------------------
+
 interventionOutputPrint <- function(output) {
   print(output[c("Int.trainError","NoInt.trainError")])
   print(output[c("Int.testError","NoInt.testError")])
@@ -275,11 +260,77 @@ interventionOutputPrint <- function(output) {
   print(output[c("Int.varImp.SDofDomBanks","NoInt.varImp.SDofDomBanks")])
 }
 
+# Functions and Obejcts END ---
 
-# Functions and Obejcts END ------------------------------------------
 
-## Execution
+
+## Execution ---------------------------------------------------------------------------------------
 sampleSize <- 0.7
+
+# SMI
+dependentVariable <- "SMIdir"
+fxInterventionCurrentSMI_1.20 <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.83, sampleSize, "FX")
+fxInterventionCurrentSMI_1.15 <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.86, sampleSize, "FX")
+sdInterventionCurrentSMI_5 <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.05, sampleSize, "SD")
+sdInterventionCurrentSMI_2.5 <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.025, sampleSize, "SD")
+
+fxInterventionCurrentRestrictedSMI_1.20 <- interventionC5(allData[currentRestrictedSMIColumns], dependentVariable, 0.83, sampleSize, "FX") # 0.86 0.83
+fxInterventionCurrentRestrictedSMI_1.15 <- interventionC5(allData[currentRestrictedSMIColumns], dependentVariable, 0.86, sampleSize, "FX") # 0.86 0.83
+sdInterventionCurrentRestrictedSMI_5 <- interventionC5(allData[currentRestrictedSMIColumns], dependentVariable, 0.05, sampleSize, "SD") # 0.05 0.025
+sdInterventionCurrentRestrictedSMI_2.5 <- interventionC5(allData[currentRestrictedSMIColumns], dependentVariable, 0.025, sampleSize, "SD") # 0.05 0.025
+
+# SPIEX
+dependentVariable <- "SPIEXdir"
+fxInterventionCurrentSPIEX_1.20 <- interventionC5(allData[currentSPIEXColumns], dependentVariable, 0.83, sampleSize, "FX")
+fxInterventionCurrentSPIEX_1.15 <- interventionC5(allData[currentSPIEXColumns], dependentVariable, 0.86, sampleSize, "FX")
+sdInterventionCurrentSPIEX_5 <- interventionC5(allData[currentSPIEXColumns], dependentVariable, 0.05, sampleSize, "SD")
+sdInterventionCurrentSPIEX_2.5 <- interventionC5(allData[currentSPIEXColumns], dependentVariable, 0.025, sampleSize, "SD")
+
+fxInterventionCurrentRestrictedSPIEX_1.20 <- interventionC5(allData[currentRestrictedSPIEXColumns], dependentVariable, 0.83, sampleSize, "FX") 
+fxInterventionCurrentRestrictedSPIEX_1.15 <- interventionC5(allData[currentRestrictedSPIEXColumns], dependentVariable, 0.86, sampleSize, "FX") 
+sdInterventionCurrentRestrictedSPIEX_5 <- interventionC5(allData[currentRestrictedSPIEXColumns], dependentVariable, 0.05, sampleSize, "SD") 
+sdInterventionCurrentRestrictedSPIEX_2.5 <- interventionC5(allData[currentRestrictedSPIEXColumns], dependentVariable, 0.025, sampleSize, "SD")
+
+
+## currentFxSMIColumns --- has similar outcomes like SMI, can be mentioned in conclusion
+dependentVariable <- "CHFEURdir"
+fxInterventionCurrentFxSMI <- interventionC5(allData[currentFxSMIColumns], dependentVariable, 0.83, sampleSize, "FX") # 0.86 0.83
+sdInterventionCurrentFxSMI <- interventionC5(allData[currentFxSMIColumns], dependentVariable, 0.05, sampleSize, "SD") # 0.05 0.025
+
+
+### For Debuggging Test for large changes of SD without white noise
+inputData <- allData[currentSMIColumns]
+dependentVariable <- "SMIdir"
+interventionThreshold <- 0.075
+sampleSize <- 0.7
+typeOfThreshold <- "FX"
+
+independentVariables <- intervention
+targetVariable <- interventionTarget
+
+# Model Execution END ---
+
+
+
+### WILL PROBABLY NOT USE THEM --------------------------------------------------------
+
+## Forecast -- Useless test errors (~47-49%), SD Variable Importance as expected (Int>NoInt) -> No signaling effect?!
+dependentVariable <- "SMInext"
+
+largeInterventionForecastSMI <- interventionC5(allData[forecastSMIColumns], dependentVariable, 0.05, sampleSize, SD)
+interventionOutputPrint(largeInterventionForecastSMI)
+
+smallInterventionForecastSMI <- interventionC5(allData[forecastSMIColumns], dependentVariable, 0.02, sampleSize, SD)
+interventionOutputPrint(smallInterventionForecastSMI)
+
+## No Sampling ----- very few rules only in the intervention 
+largeInterventionForecastSMI_NoSampling <- interventionC5(allData[forecastSMIColumns], dependentVariable, 0.05, 0, "SD")
+smallInterventionForecastSMI_NoSampling <- interventionC5(allData[forecastSMIColumns], dependentVariable, 0.02, 0)
+
+
+
+
+## Period Model ---------------------------------------------------------------------
 
 # Pattern to describe next Week's CHFEUR
 currentSMI   <- allPeriodsC5(allData[currentSMIColumns], "SMIdir", sampleSize)
@@ -318,76 +369,6 @@ outputPrint(currentFxSPIEX)
 outputPrint(forecastFxSMI)
 outputPrint(forecastFxSMIM)
 outputPrint(forecastFxSPIEX)
-
-######## ------- Test for large changes of SD without white noise
-
-inputData <- allData[currentSMIColumns]
-interventionThreshold <- 0.075
-
-independentVariables <- intervention
-targetVariable <- interventionTarget
-
-### ----- determining Fx movements
-sampleSize <- 0.7
-
-## Current -- Ok Test Errors, SD Variable Importance as expected (Int>NoInt) apart from SDDir -> rebalancing effect (since simulatenous change in SMI)
-dependentVariable <- "SMIdir"
-
-fxInterventionCurrentSMI <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.83, sampleSize, "FX") # 0.86 0.83
-sdInterventionCurrentSMI <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.025, sampleSize, "SD") # 0.05 0.025
-
-fxInterventionCurrentRestrictedSMI_1.20 <- interventionC5(allData[currentRestrictedSMIColumns], dependentVariable, 0.83, sampleSize, "FX") # 0.86 0.83
-fxInterventionCurrentRestrictedSMI_1.15 <- interventionC5(allData[currentRestrictedSMIColumns], dependentVariable, 0.86, sampleSize, "FX") # 0.86 0.83
-
-
-# very few rules only in the intervention
-largeInterventionCurrentSMI_NoSampling <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.05, 0, "SD")
-smallInterventionCurrentSMI_NoSampling <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.02, 0)
-
-# ----- currentFxSMIColumns
-
-dependentVariable <- "CHFEURdir"
-
-fxInterventionCurrentFxSMI <- interventionC5(allData[currentFxSMIColumns], dependentVariable, 0.83, sampleSize, "FX") # 0.86 0.83
-sdInterventionCurrentFxSMI <- interventionC5(allData[currentFxSMIColumns], dependentVariable, 0.025, sampleSize, "SD") # 0.05 0.025
-
-
-## Forecast -- Useless test errors (~47-49%), SD Variable Importance as expected (Int>NoInt) -> No signaling effect?!
-dependentVariable <- "SMInext"
-
-largeInterventionForecastSMI <- interventionC5(allData[forecastSMIColumns], dependentVariable, 0.05, sampleSize, SD)
-interventionOutputPrint(largeInterventionForecastSMI)
-
-smallInterventionForecastSMI <- interventionC5(allData[forecastSMIColumns], dependentVariable, 0.02, sampleSize, SD)
-interventionOutputPrint(smallInterventionForecastSMI)
-
-## very few rules only in the intervention 
-largeInterventionForecastSMI_NoSampling <- interventionC5(allData[forecastSMIColumns], dependentVariable, 0.05, 0, "SD")
-smallInterventionForecastSMI_NoSampling <- interventionC5(allData[forecastSMIColumns], dependentVariable, 0.02, 0)
-
-
-dependentVariable <- "SMIdir"
-interventionThreshold <- 0.05
-
-target <- "SMIdir"
-
-mega <- subset(allData[currentSMIColumns], abs(ChgSDdomBanks) > 0.05)
-mtargetVariable <- mega[,target]
-mega[,"Date"] <- NULL
-mega[,target] <- NULL
-mmodel <- C5.0(mega, mtargetVariable,
-              rules = TRUE, trials = 10, 
-              control = C5.0Control(sample=0.7))
-summary(mmodel)
-
-lega <- subset(allData[c(currentSMIColumns)], abs(ChgSDdomBanks) <= 0.05)
-ltargetVariable <- lega[,target]
-lega[,"Date"] <- NULL
-lega[,target] <- NULL
-lmodel <- C5.0(lega, ltargetVariable,
-              rules = TRUE, trials = 10, 
-              control = C5.0Control(sample=0.7))
-summary(lmodel)
 
 
 ## Plotting and descriptive statistics ---------------------------------------------------------------------------------------
