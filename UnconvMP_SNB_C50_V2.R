@@ -108,7 +108,7 @@ currentFxSPIEXColumns <- c(basicColumnsFX,"RetSPIEX","SPIEX","SPIEXdir","CHFEURp
 
 # Functions and Obejcts BEGIN ------------------------------------------
 
-samplingC5 <- function(independentVariables, targetVariable, sampleSize) {
+samplingC5 <- function(independentVariables, targetVariable, sampleSize, typeOfImportance) {
     
     sumVariableImportance = setNames(data.frame(matrix(ncol = length(names(independentVariables)), nrow = 1)), names(independentVariables))
     boostTrain = vector() 
@@ -134,7 +134,7 @@ samplingC5 <- function(independentVariables, targetVariable, sampleSize) {
         #print(boostTest[i])
       
         # parsing Variable Importance 
-        variableImportance <- C5imp(model,metric = "splits") # splits usage
+        variableImportance <- C5imp(model,metric = typeOfImportance) # splits usage
       
         for (var in model[["predictors"]])
         {
@@ -142,7 +142,7 @@ samplingC5 <- function(independentVariables, targetVariable, sampleSize) {
         }
       }
     }
-    orderOfImportance <- sort(colMeans(sumVariableImportance), decreasing = TRUE)
+    orderOfImportance <- sort(colMeans(sumVariableImportance, na.rm = TRUE), decreasing = TRUE)
     boostTrain <- as.numeric(sub("%", "", boostTrain[!is.na(boostTrain)]))
     boostTest  <- as.numeric(sub("%", "", boostTest[!is.na(boostTest)]))
     
@@ -158,7 +158,7 @@ samplingC5 <- function(independentVariables, targetVariable, sampleSize) {
 
 # -----------------------------------------------------------------
 
-allPeriodsC5 <- function(inputData, dependentVariable, sampleSize) {
+allPeriodsC5 <- function(inputData, dependentVariable, sampleSize, typeOfImportance) {
   
   # Variable to be determined by C5.0
   preTarget <- inputData[1:185, dependentVariable]
@@ -174,9 +174,9 @@ allPeriodsC5 <- function(inputData, dependentVariable, sampleSize) {
   postData <- inputData[363:555,]
   
   # Run C5.0 Sampling for different Periods
-  preCap <- samplingC5(preData,preTarget, sampleSize)
-  cap <- samplingC5(capData, capTarget, sampleSize)
-  postCap <- samplingC5(postData, postTarget, sampleSize) 
+  preCap <- samplingC5(preData,preTarget, sampleSize, typeOfImportance)
+  cap <- samplingC5(capData, capTarget, sampleSize, typeOfImportance)
+  postCap <- samplingC5(postData, postTarget, sampleSize, typeOfImportance) 
   
   # Output of Object
   results <- c(PreCap = preCap, Cap = cap, PostCap = postCap) 
@@ -186,13 +186,21 @@ allPeriodsC5 <- function(inputData, dependentVariable, sampleSize) {
 
 # -----------------------------------------------------------------
 
-interventionC5 <- function(inputData, dependentVariable, interventionThreshold, sampleSize, typeOfThreshold) {
+interventionC5 <- function(inputData, dependentVariable, interventionThreshold, sampleSize, typeOfThreshold, typeOfImportance){
   
   # Data set for Intervention & no Intervention weeks
-  if (typeOfThreshold == "SD")
+  if (typeOfThreshold == "relativeSD")
   {
   intervention  <- subset(inputData, abs(ChgSDdomBanks) > interventionThreshold)
   noIntervention <- subset(inputData, abs(ChgSDdomBanks) <= interventionThreshold)
+  }
+  if (typeOfThreshold == "nominalSD")
+  {
+    intervention  <- subset(inputData, abs(ChgSDdomBanks*SDofDomBanks/(1+ChgSDdomBanks)) > interventionThreshold)
+    noIntervention <- subset(inputData, abs(ChgSDdomBanks*SDofDomBanks/(1+ChgSDdomBanks)) <= interventionThreshold)
+    intervention[,"ChgSDdomBanks"]   <- NULL
+    noIntervention[,"ChgSDdomBanks"] <- NULL
+    
   }
   if (typeOfThreshold == "FX")
   {
@@ -229,8 +237,8 @@ interventionC5 <- function(inputData, dependentVariable, interventionThreshold, 
   else
   {
     # Run C5.0 Sampling
-    interventionResults   <- samplingC5(intervention,interventionTarget, sampleSize)
-    noInterventionResults <- samplingC5(noIntervention, noInterventionTarget, sampleSize)
+    interventionResults   <- samplingC5(intervention,interventionTarget, sampleSize, typeOfImportance)
+    noInterventionResults <- samplingC5(noIntervention, noInterventionTarget, sampleSize, typeOfImportance)
   }
   
   # Output of Object
@@ -266,47 +274,51 @@ interventionOutputPrint <- function(output) {
 
 ## Execution ---------------------------------------------------------------------------------------
 sampleSize <- 0.7
+typeOfImportance <- "splits" # splits usage
 
 # SMI
 dependentVariable <- "SMIdir"
-fxInterventionCurrentSMI_1.20 <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.83, sampleSize, "FX")
-fxInterventionCurrentSMI_1.15 <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.86, sampleSize, "FX")
-sdInterventionCurrentSMI_5 <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.05, sampleSize, "SD")
-sdInterventionCurrentSMI_2.5 <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.025, sampleSize, "SD")
+fxInterventionCurrentSMI_1.20 <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.83, sampleSize, "FX", typeOfImportance)
+fxInterventionCurrentSMI_1.15 <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.86, sampleSize, "FX", typeOfImportance)
+sdInterventionCurrentSMI_75 <- interventionC5(allData[currentSMIColumns], dependentVariable, 3586, sampleSize, "nominalSD", typeOfImportance)
+sdInterventionCurrentSMI_80 <- interventionC5(allData[currentSMIColumns], dependentVariable, 4234, sampleSize, "nominalSD", typeOfImportance)
 
-fxInterventionCurrentRestrictedSMI_1.20 <- interventionC5(allData[currentRestrictedSMIColumns], dependentVariable, 0.83, sampleSize, "FX") # 0.86 0.83
-fxInterventionCurrentRestrictedSMI_1.15 <- interventionC5(allData[currentRestrictedSMIColumns], dependentVariable, 0.86, sampleSize, "FX") # 0.86 0.83
-sdInterventionCurrentRestrictedSMI_5 <- interventionC5(allData[currentRestrictedSMIColumns], dependentVariable, 0.05, sampleSize, "SD") # 0.05 0.025
-sdInterventionCurrentRestrictedSMI_2.5 <- interventionC5(allData[currentRestrictedSMIColumns], dependentVariable, 0.025, sampleSize, "SD") # 0.05 0.025
+sdInterventionCurrentSMI_2.5 <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.025, sampleSize, "relativeSD", typeOfImportance)
+
+
+fxInterventionCurrentRestrictedSMI_1.20 <- interventionC5(allData[currentRestrictedSMIColumns], dependentVariable, 0.83, sampleSize, "FX", typeOfImportance) # 0.86 0.83
+fxInterventionCurrentRestrictedSMI_1.15 <- interventionC5(allData[currentRestrictedSMIColumns], dependentVariable, 0.86, sampleSize, "FX", typeOfImportance) # 0.86 0.83
+sdInterventionCurrentRestrictedSMI_2.5 <- interventionC5(allData[currentRestrictedSMIColumns], dependentVariable, 0.025, sampleSize, "relativeSD", typeOfImportance) # 0.05 0.025
 
 # SPIEX
 dependentVariable <- "SPIEXdir"
-fxInterventionCurrentSPIEX_1.20 <- interventionC5(allData[currentSPIEXColumns], dependentVariable, 0.83, sampleSize, "FX")
-fxInterventionCurrentSPIEX_1.15 <- interventionC5(allData[currentSPIEXColumns], dependentVariable, 0.86, sampleSize, "FX")
-sdInterventionCurrentSPIEX_5 <- interventionC5(allData[currentSPIEXColumns], dependentVariable, 0.05, sampleSize, "SD")
-sdInterventionCurrentSPIEX_2.5 <- interventionC5(allData[currentSPIEXColumns], dependentVariable, 0.025, sampleSize, "SD")
+fxInterventionCurrentSPIEX_1.20 <- interventionC5(allData[currentSPIEXColumns], dependentVariable, 0.83, sampleSize, "FX", typeOfImportance)
+fxInterventionCurrentSPIEX_1.15 <- interventionC5(allData[currentSPIEXColumns], dependentVariable, 0.86, sampleSize, "FX", typeOfImportance)
+sdInterventionCurrentSPIEX_5 <- interventionC5(allData[currentSPIEXColumns], dependentVariable, 0.05, sampleSize, "SD", typeOfImportance)
+sdInterventionCurrentSPIEX_2.5 <- interventionC5(allData[currentSPIEXColumns], dependentVariable, 0.025, sampleSize, "SD", typeOfImportance)
 
-fxInterventionCurrentRestrictedSPIEX_1.20 <- interventionC5(allData[currentRestrictedSPIEXColumns], dependentVariable, 0.83, sampleSize, "FX") 
-fxInterventionCurrentRestrictedSPIEX_1.15 <- interventionC5(allData[currentRestrictedSPIEXColumns], dependentVariable, 0.86, sampleSize, "FX") 
-sdInterventionCurrentRestrictedSPIEX_5 <- interventionC5(allData[currentRestrictedSPIEXColumns], dependentVariable, 0.05, sampleSize, "SD") 
-sdInterventionCurrentRestrictedSPIEX_2.5 <- interventionC5(allData[currentRestrictedSPIEXColumns], dependentVariable, 0.025, sampleSize, "SD")
+fxInterventionCurrentRestrictedSPIEX_1.20 <- interventionC5(allData[currentRestrictedSPIEXColumns], dependentVariable, 0.83, sampleSize, "FX", typeOfImportance) 
+fxInterventionCurrentRestrictedSPIEX_1.15 <- interventionC5(allData[currentRestrictedSPIEXColumns], dependentVariable, 0.86, sampleSize, "FX", typeOfImportance) 
+sdInterventionCurrentRestrictedSPIEX_5 <- interventionC5(allData[currentRestrictedSPIEXColumns], dependentVariable, 0.05, sampleSize, "SD", typeOfImportance) 
+sdInterventionCurrentRestrictedSPIEX_2.5 <- interventionC5(allData[currentRestrictedSPIEXColumns], dependentVariable, 0.025, sampleSize, "SD", typeOfImportance)
 
 
 ## currentFxSMIColumns --- has similar outcomes like SMI, can be mentioned in conclusion
 dependentVariable <- "CHFEURdir"
-fxInterventionCurrentFxSMI <- interventionC5(allData[currentFxSMIColumns], dependentVariable, 0.83, sampleSize, "FX") # 0.86 0.83
-sdInterventionCurrentFxSMI <- interventionC5(allData[currentFxSMIColumns], dependentVariable, 0.05, sampleSize, "SD") # 0.05 0.025
+fxInterventionCurrentFxSMI <- interventionC5(allData[currentFxSMIColumns], dependentVariable, 0.83, sampleSize, "FX", typeOfImportance) # 0.86 0.83
+sdInterventionCurrentFxSMI <- interventionC5(allData[currentFxSMIColumns], dependentVariable, 0.05, sampleSize, "SD", typeOfImportance) # 0.05 0.025
 
 
 ### For Debuggging Test for large changes of SD without white noise
-inputData <- allData[currentSMIColumns]
-dependentVariable <- "SMIdir"
-interventionThreshold <- 0.075
+inputData <- allData[currentRestrictedSPIEXColumns]
+dependentVariable <- "SPIEXdir"
+interventionThreshold <- 0.83
 sampleSize <- 0.7
 typeOfThreshold <- "FX"
 
 independentVariables <- intervention
 targetVariable <- interventionTarget
+typeOfImportance <- "usage"
 
 # Model Execution END ---
 
