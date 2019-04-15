@@ -89,16 +89,20 @@ allData$CHFEURnext[1:574] <- allData$CHFEURdir[2:575] # CHFEURdata$CHFEURdir[1:5
 # delete first row and the last rows
 allData <-allData[2:556,] 
 
-## List of Colums --------------------------------------------
-basicColumnsIndex <- c("SDofDomBanks","ChgSDdomBanks","SDdomBanksdir","CHFUSD","RetCHFEUR","CHFEUR","CHFEURdir","Gov3yr","Gov10yr","Libor3M_CHF")
+## List of Colums -------------------------------------------- "CHFEURdir", "RetCHFEUR"
+basicColumnsIndex <- c("SDofDomBanks","ChgSDdomBanks","SDdomBanksdir","CHFUSD","CHFEUR","Gov3yr","Gov10yr","Libor3M_CHF")
+
 
 # Same Week
 currentSMIColumns   <- c(basicColumnsIndex,"SMIprev","SMIdir")
 currentSPIEXColumns <- c(basicColumnsIndex,"SPIEXprev","SPIEXdir")
 
 # Forecast
-forecastSMIColumns   <- c(basicColumnsIndex,"SMI","SMInext")
-forecastSPIEXColumns <- c(basicColumnsIndex,"SPIEX","SPIEXnext")
+ 
+#forecastSMIColumns <- c(basicColumnsIndex,"SMIdir","SMI","SMInext", "RetSMI")
+forecastSMIColumns <- c("SDofDomBanks","SMI","Gov10yr","Gov3yr","Libor3M_CHF","CHFUSD","CHFEUR","RetSMI","ChgSDdomBanks","SMIdir","SDdomBanksdir","SMInext")
+forecastSPIEXColumns <- c("SDofDomBanks","SPIEX","Gov10yr","Gov3yr","Libor3M_CHF","CHFUSD","CHFEUR","RetSPIEX","ChgSDdomBanks","SPIEXdir","SDdomBanksdir","SPIEXnext")
+#forecastSPIEXColumns <- c(basicColumnsIndex,"SPIEXdir","SPIEX", "SPIEXnext", "RetSPIEX")
 
 ## Data extention & C50 algorithm --------------------------------------
 
@@ -159,7 +163,7 @@ periodsC5 <- function(inputData, dependentVariable, sampleSize, typeOfImportance
   # Variable to be determined by C5.0
   preTarget <- inputData[1:185, dependentVariable]
   capTarget <- inputData[186:362, dependentVariable]
-  postTarget <- inputData[363:555, dependentVariable]
+  postTarget <- inputData[362:555, dependentVariable]
   
   # Delete Target variable from input Data
   inputData[,dependentVariable] <- NULL
@@ -167,19 +171,25 @@ periodsC5 <- function(inputData, dependentVariable, sampleSize, typeOfImportance
   # Define input Data for C5.0
   preData <- inputData[1:185,]
   capData <- inputData[186:362,]
-  postData <- inputData[363:555,]
+  postData <- inputData[362:555,]
   
 
   if (sampleSize == 0)
   {
     # Run C5.0
-    preCap <- C5.0(preData, preTarget, rules = TRUE, trials = 100)
-    cap <- C5.0(capData, capTarget, rules = TRUE, trials = 100)
-    postCap <- C5.0(postData, postTarget, rules = TRUE, trials = 100)
+    preCap <- C5.0(preData, preTarget, rules = TRUE, trials = 100, metric=typeOfImportance)
+    cap <- C5.0(capData, capTarget, rules = TRUE, trials = 100) #, metric=typeOfImportance)
+    capMix <- C5.0(CapPeriod.SMI[-12], capTarget, rules = TRUE, trials = 100)
+    Cap.model.SMI <- C5.0(CapPeriod.SMI[-12], CapPeriod.SMI$SMI.FC, rules = TRUE, trials = 100)
+    
+    postCap <- C5.0(postData, postTarget, rules = TRUE, trials = 100, metric=typeOfImportance)
 
-    print(summary(preCap))
+    #print(summary(preCap))
+    #print(C5imp(preCap,metric = typeOfImportance))
     print(summary(cap))
-    print(summary(postCap))
+    print(C5imp(cap,metric = typeOfImportance))
+    #print(summary(postCap))
+    #print(C5imp(postCap,metric = typeOfImportance))
   }
   else
   {
@@ -282,13 +292,20 @@ interventionOutputPrint <- function(output) {
 ### Execution ---------------------------------------------------------------------------------------
 sampleSize <- 0.7
 sampleSize <- 0
-typeOfImportance <- "splits" # splits usage
+typeOfImportance <- "usage" # splits usage
 
 ## SMI
 dependentVariable <- "SMIdir"
 # Periods
 currentSMI   <- periodsC5(allData[currentSMIColumns], dependentVariable, sampleSize, typeOfImportance)
-§forecastSMI   <- periodsC5(allData[forecastSMIColumns], "SMInext", sampleSize, typeOfImportance)
+forecastSMI   <- periodsC5(allData[forecastSMIColumns], "SMInext", sampleSize, typeOfImportance)
+fcSMIColumns
+
+inputData <- allData[fcSMIColumns]
+dependentVariable <- "SMInext"
+sampleSize <- 0
+typeOfImportance <- "usage"
+
 # Intervention
 InterventionCurrentSMI_Fx1.20 <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.8333, sampleSize, "FX", typeOfImportance)
 InterventionCurrentSMI_Sd75 <- interventionC5(allData[currentSMIColumns], dependentVariable, 3586, sampleSize, "nominalSD", typeOfImportance)
