@@ -121,7 +121,7 @@ samplingC5 <- function(independentVariables, targetVariable, sampleSize, typeOfI
     errorTrain = vector() 
     errorTest = vector()
   
-    for (i in 1:1000) {
+    for (i in 1:2000) {
       
       model <- C5.0(independentVariables, targetVariable,
                     rules = TRUE, trials = 100, 
@@ -135,9 +135,20 @@ samplingC5 <- function(independentVariables, targetVariable, sampleSize, typeOfI
       {
         # parsing Boost Error Value
         output <- strsplit(model[["output"]], "\n")[[1]]
-        errorRow <- grep("Errors", output)
-        errorTrain[i] <- gsub(".*\\(|\\).*", "", output[(errorRow[1]+2)])
-        errorTest[i] <- gsub(".*\\(|\\).*", "", output[(errorRow[2]+2)])
+        boostRow <- grep("^boost\t", output)
+        
+        if (length(boostRow) == 0)
+        {
+          errorRow <- grep("Errors", output)
+          errorTrain[i] <- gsub(".*\\(|\\).*", "", output[(errorRow[1]+2)])
+          errorTest[i] <- gsub(".*\\(|\\).*", "", output[(errorRow[2]+2)])
+        }
+        else
+        {
+          errorTrain[i] <- gsub(".*\\(|\\).*", "", output[(boostRow[1])])
+          errorTest[i] <- gsub(".*\\(|\\).*", "", output[(boostRow[2])])
+          
+        }
 
         # parsing Variable Importance 
         variableImportance <- C5imp(model,metric = typeOfImportance) # splits usage
@@ -321,7 +332,7 @@ interventionOutputPrint <- function(output) {
 ### Execution ---------------------------------------------------------------------------------------
 sampleSize <- 0.7
 sampleSize <- 0
-typeOfImportance <- "usage" # splits usage
+typeOfImportance <- "splits" # splits usage
 
 inputData <- allData[currentSMIColumns]
 interventionThreshold= 0.8333
