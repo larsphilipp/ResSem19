@@ -34,12 +34,12 @@ dataind04 <- transform(dataind04, Date = as.Date(Date, format = "%Y-%m-%d") ,SNB
 dataind04 <- dataind04[-c(1:196),]
 
 # SNB Data
-dataind08 <- read.csv2("Data_for_import_Indices_from_08.csv", header = TRUE , sep = ";") #reading in data
+dataind08 <- read.csv2("Data_for_import_Indices_from_08.csv", header = TRUE , sep = ",") #reading in data
 
 
 ## Data Cleaning --------------------------------------
 # Transforming the columns of the data frame into numeric
-dataind08 <- transform(dataind08, Date = as.Date(Date, format = "%Y-%m-%d") ,SMI = as.numeric(as.character(SMI)), SDofDomBanks = as.numeric(as.character(SDofDomBanks)), 
+dataind08 <- transform(dataind08, Date = as.Date(Date, format = "%d/%m/%Y") ,SMI = as.numeric(as.character(SMI)), SDofDomBanks = as.numeric(as.character(SDofDomBanks)), 
                        SPIEX = as.numeric(as.character(SPIEX)), SMIMid = as.numeric(as.character(SMIMid)), Gov10yr = as.numeric(as.character(Gov10yr)),
                      Gov3yr = as.numeric(as.character(Gov3yr)), Libor3M_CHF = as.numeric(as.character(Libor3M_CHF)), CHFUSD = as.numeric(as.character(CHFUSD)),
                      CHFEUR = as.numeric(as.character(CHFEUR))) # Converting numbers into numeric format and date column to date format
@@ -87,34 +87,41 @@ allData$CHFEURnext <- allData$CHFEURdir
 allData$CHFEURnext[1:574] <- allData$CHFEURdir[2:575] # CHFEURdata$CHFEURdir[1:574]
 
 # delete first row and the last rows
-allData <-allData[2:556,] 
+allData <-allData[2:568,] 
 
 ## List of Colums -------------------------------------------- "CHFEURdir", "RetCHFEUR"
 basicColumnsIndex <- c("SDofDomBanks","ChgSDdomBanks","SDdomBanksdir","CHFUSD","CHFEUR","Gov3yr","Gov10yr","Libor3M_CHF")
 
 
 # Same Week
-currentSMIColumns   <- c(basicColumnsIndex,"SMIprev","SMIdir")
-currentSPIEXColumns <- c(basicColumnsIndex,"SPIEXprev","SPIEXdir")
+#currentSMIColumns   <- c(basicColumnsIndex,"SMIprev","SMIdir")
+#currentSPIEXColumns <- c(basicColumnsIndex,"SPIEXprev","SPIEXdir")
+currentSMIColumns <- c("SDofDomBanks","Gov10yr","Gov3yr","Libor3M_CHF","CHFUSD","CHFEUR","ChgSDdomBanks","SMIdir","SDdomBanksdir","SMIprev")
+currentSPIEXColumns <- c("SDofDomBanks","Gov10yr","Gov3yr","Libor3M_CHF","CHFUSD","CHFEUR","ChgSDdomBanks","SPIEXdir","SDdomBanksdir","SPIEXprev")
 
 # Forecast
- 
 #forecastSMIColumns <- c(basicColumnsIndex,"SMIdir","SMI","SMInext", "RetSMI")
+#forecastSPIEXColumns <- c(basicColumnsIndex,"SPIEXdir","SPIEX", "SPIEXnext", "RetSPIEX")
 forecastSMIColumns <- c("SDofDomBanks","SMI","Gov10yr","Gov3yr","Libor3M_CHF","CHFUSD","CHFEUR","RetSMI","ChgSDdomBanks","SMIdir","SDdomBanksdir","SMInext")
 forecastSPIEXColumns <- c("SDofDomBanks","SPIEX","Gov10yr","Gov3yr","Libor3M_CHF","CHFUSD","CHFEUR","RetSPIEX","ChgSDdomBanks","SPIEXdir","SDdomBanksdir","SPIEXnext")
-#forecastSPIEXColumns <- c(basicColumnsIndex,"SPIEXdir","SPIEX", "SPIEXnext", "RetSPIEX")
+
 
 ## Data extention & C50 algorithm --------------------------------------
+independentVariables <- intervention
+targetVariable <- interventionTarget
+independentVariables <- noIntervention
+targetVariable <- noInterventionTarget
+
 
 # Functions and Obejcts BEGIN ------------------------------------------
 
 samplingC5 <- function(independentVariables, targetVariable, sampleSize, typeOfImportance) {
     
     sumVariableImportance = setNames(data.frame(matrix(ncol = length(names(independentVariables)), nrow = 1)), names(independentVariables))
-    boostTrain = vector() 
-    boostTest = vector()
+    errorTrain = vector() 
+    errorTest = vector()
   
-    for (i in 1:100) {
+    for (i in 1:1000) {
       
       model <- C5.0(independentVariables, targetVariable,
                     rules = TRUE, trials = 100, 
@@ -128,11 +135,10 @@ samplingC5 <- function(independentVariables, targetVariable, sampleSize, typeOfI
       {
         # parsing Boost Error Value
         output <- strsplit(model[["output"]], "\n")[[1]]
-        boostRow <- grep("^boost\t", output)
-        boostTrain[i] <- gsub(".*\\(|\\).*", "", output[(boostRow[1])])
-        boostTest[i] <- gsub(".*\\(|\\).*", "", output[(boostRow[2])])
-        #print(boostTest[i])
-      
+        errorRow <- grep("Errors", output)
+        errorTrain[i] <- gsub(".*\\(|\\).*", "", output[(errorRow[1]+2)])
+        errorTest[i] <- gsub(".*\\(|\\).*", "", output[(errorRow[2]+2)])
+
         # parsing Variable Importance 
         variableImportance <- C5imp(model,metric = typeOfImportance) # splits usage
       
@@ -143,15 +149,20 @@ samplingC5 <- function(independentVariables, targetVariable, sampleSize, typeOfI
       }
     }
     orderOfImportance <- sort(colMeans(sumVariableImportance, na.rm = TRUE), decreasing = TRUE)
-    boostTrain <- as.numeric(sub("%", "", boostTrain[!is.na(boostTrain)]))
-    boostTest  <- as.numeric(sub("%", "", boostTest[!is.na(boostTest)]))
+    errorTrain <- as.numeric(sub("%", "", errorTrain[!is.na(errorTrain)]))
+    errorTest  <- as.numeric(sub("%", "", errorTest[!is.na(errorTest)]))
     
-    meanBoostTrain <- mean(boostTrain)
-    meanBoostTest  <- mean(boostTest)
+    meanErrorTrain <- mean(errorTrain)
+    meanErrorTest  <- mean(errorTest)
   
-    tTestTest <- t.test(boostTest, mu = 50)
+    tTestTest <- t.test(errorTest, mu = 50)
+    impSDDir  <- sumVariableImportance[,"SDdomBanksdir"][!is.na(sumVariableImportance[,"SDdomBanksdir"])]
+    impSD     <- sumVariableImportance[,"SDofDomBanks"][!is.na(sumVariableImportance[,"SDofDomBanks"])]
     
-    results <- c(trainError = meanBoostTrain, testError = meanBoostTest, varImp = orderOfImportance, tTestTestSet = tTestTest["p.value"]) # arr <- boostTest
+    results <- list(trainError = meanErrorTrain, testError = meanErrorTest, 
+                 varImp = orderOfImportance, tTestTestSet = tTestTest["p.value"],
+                 ImpSDDir = impSDDir, ImpSD = impSD)
+    
     attr(results, "class") <- "samplingC5"
     results
 }
@@ -162,44 +173,52 @@ periodsC5 <- function(inputData, dependentVariable, sampleSize, typeOfImportance
   
   # Variable to be determined by C5.0
   preTarget <- inputData[1:185, dependentVariable]
-  capTarget <- inputData[186:362, dependentVariable]
-  postTarget <- inputData[362:555, dependentVariable]
+  capTarget <- inputData[186:361, dependentVariable]
+  postTarget <- inputData[361:567, dependentVariable]
   
   # Delete Target variable from input Data
   inputData[,dependentVariable] <- NULL
   
   # Define input Data for C5.0
   preData <- inputData[1:185,]
-  capData <- inputData[186:362,]
-  postData <- inputData[362:555,]
+  capData <- inputData[186:361,]
+  postData <- inputData[361:567,]
   
 
   if (sampleSize == 0)
   {
     # Run C5.0
     preCap <- C5.0(preData, preTarget, rules = TRUE, trials = 100, metric=typeOfImportance)
-    cap <- C5.0(capData, capTarget, rules = TRUE, trials = 100) #, metric=typeOfImportance)
-    capMix <- C5.0(CapPeriod.SMI[-12], capTarget, rules = TRUE, trials = 100)
-    Cap.model.SMI <- C5.0(CapPeriod.SMI[-12], CapPeriod.SMI$SMI.FC, rules = TRUE, trials = 100)
-    
+    cap <- C5.0(capData, capTarget, rules = TRUE, trials = 100, metric=typeOfImportance)
     postCap <- C5.0(postData, postTarget, rules = TRUE, trials = 100, metric=typeOfImportance)
 
-    #print(summary(preCap))
-    #print(C5imp(preCap,metric = typeOfImportance))
+    print(summary(preCap))
+    print(C5imp(preCap,metric = typeOfImportance))
     print(summary(cap))
     print(C5imp(cap,metric = typeOfImportance))
-    #print(summary(postCap))
-    #print(C5imp(postCap,metric = typeOfImportance))
+    print(summary(postCap))
+    print(C5imp(postCap,metric = typeOfImportance))
   }
   else
   {
     # Run C5.0 Sampling for different Periods
     preCap <- samplingC5(preData,preTarget, sampleSize, typeOfImportance)
     cap <- samplingC5(capData, capTarget, sampleSize, typeOfImportance)
-    postCap <- samplingC5(postData, postTarget, sampleSize, typeOfImportance) 
+    postCap <- samplingC5(postData, postTarget, sampleSize, typeOfImportance)
+    
+    welchPreCapSDDir  <- t.test(preCap$ImpSDDir, cap$ImpSDDir)
+    welchPostCapSDDir <- t.test(postCap$ImpSDDir, cap$ImpSDDir)
+    welchPreCapSD  <- t.test(preCap$ImpSD, cap$ImpSD)
+    welchPostCapSD <- t.test(postCap$ImpSD, cap$ImpSD)
   }
   # Output of Object
-  results <- c(PreCap = preCap, Cap = cap, PostCap = postCap) 
+  results <- c(preCapTrainError = preCap$trainError, preCapTestError = preCap$testError, preCapTestPValue = preCap$tTestTestSet, preCapVarImp = preCap$varImp,
+               capTrainError = cap$trainError, capTestError = cap$testError, capTestPValue = cap$tTestTestSet, capVarImp = cap$varImp,
+               postCapTrainError = postCap$trainError, postCapTestError = postCap$testError, postCapTestPValue = postCap$tTestTestSet, postCapVarImp = postCap$varImp,
+               WelchPreCapSDDirPValue = welchPreCapSDDir$p.value,
+               WelchPostCapSDDirPValue = welchPostCapSDDir$p.value,
+               WelchPreCapSDPValue = welchPreCapSD$p.value,
+               WelchPostCapSDPValue = welchPostCapSD$p.value)  
   attr(results, "class") <- "allPeriodsC5"
   results
 }
@@ -211,13 +230,21 @@ interventionC5 <- function(inputData, dependentVariable, interventionThreshold, 
   # Data set for Intervention & no Intervention weeks
   if (typeOfThreshold == "relativeSD")
   {
-  intervention  <- subset(inputData, abs(ChgSDdomBanks) > interventionThreshold)
-  noIntervention <- subset(inputData, abs(ChgSDdomBanks) <= interventionThreshold)
+    intervention  <- subset(inputData, abs(ChgSDdomBanks) > interventionThreshold)
+    noIntervention <- subset(inputData, abs(ChgSDdomBanks) <= interventionThreshold)
+    
+    # Remove Chaange of Side deposits
+    intervention[,"ChgSDdomBanks"]   <- NULL
+    noIntervention[,"ChgSDdomBanks"] <- NULL
   }
   if (typeOfThreshold == "nominalSD")
   {
     intervention  <- subset(inputData, abs(ChgSDdomBanks*SDofDomBanks/(1+ChgSDdomBanks)) > interventionThreshold)
     noIntervention <- subset(inputData, abs(ChgSDdomBanks*SDofDomBanks/(1+ChgSDdomBanks)) <= interventionThreshold)
+    
+    # Remove Chaange of Side deposits
+    intervention[,"ChgSDdomBanks"]   <- NULL
+    noIntervention[,"ChgSDdomBanks"] <- NULL
   }
   if (typeOfThreshold == "FX")
   {
@@ -241,16 +268,12 @@ interventionC5 <- function(inputData, dependentVariable, interventionThreshold, 
   intervention[,dependentVariable]   <- NULL
   noIntervention[,dependentVariable] <- NULL
   
-  # Remove Chaange of Side deposits
-  intervention[,"ChgSDdomBanks"]   <- NULL
-  noIntervention[,"ChgSDdomBanks"] <- NULL
-  
   if (sampleSize == 0)
   {
     # Run C5.0
-    interventionResults <- C5.0(intervention, interventionTarget,
+    int <- C5.0(intervention, interventionTarget,
                                   rules = TRUE, trials = 100)
-    noInterventionResults <- C5.0(noIntervention, noInterventionTarget,
+    noInt <- C5.0(noIntervention, noInterventionTarget,
                                   rules = TRUE, trials = 100)
     print(summary(interventionResults))
     print(summary(noInterventionResults))
@@ -258,12 +281,18 @@ interventionC5 <- function(inputData, dependentVariable, interventionThreshold, 
   else
   {
     # Run C5.0 Sampling
-    interventionResults   <- samplingC5(intervention,interventionTarget, sampleSize, typeOfImportance)
-    noInterventionResults <- samplingC5(noIntervention, noInterventionTarget, sampleSize, typeOfImportance)
+    int   <- samplingC5(intervention,interventionTarget, sampleSize, typeOfImportance)
+    noInt <- samplingC5(noIntervention, noInterventionTarget, sampleSize, typeOfImportance)
+    
+    welchSDDir <- t.test(int$ImpSDDir, noInt$ImpSDDir)
+    welchSD    <- t.test(int$ImpSD, noInt$ImpSD)
   }
   
   # Output of Object
-  results <- c(Int = interventionResults, NoInt = noInterventionResults) 
+  results <- c(IntTrainError = int$trainError, IntTestError = int$testError, IntTestPValue = int$tTestTestSet, IntVarImp = int$varImp,
+               NoIntTrainError = noInt$trainError, NoIntTestError = noInt$testError, NoIntTestPValue = noInt$tTestTestSet, NoIntVarImp = noInt$varImp,
+               WelchSDDirPValue = welchSDDir$p.value,
+               WelchSDPValue = welchSD$p.value) 
   attr(results, "class") <- "interventionC5"
   results
 }
@@ -294,21 +323,21 @@ sampleSize <- 0.7
 sampleSize <- 0
 typeOfImportance <- "usage" # splits usage
 
+inputData <- allData[currentSMIColumns]
+interventionThreshold= 0.8333
+typeOfThreshold = "FX"
+
+
+
 ## SMI
 dependentVariable <- "SMIdir"
 # Periods
 currentSMI   <- periodsC5(allData[currentSMIColumns], dependentVariable, sampleSize, typeOfImportance)
 forecastSMI   <- periodsC5(allData[forecastSMIColumns], "SMInext", sampleSize, typeOfImportance)
-fcSMIColumns
-
-inputData <- allData[fcSMIColumns]
-dependentVariable <- "SMInext"
-sampleSize <- 0
-typeOfImportance <- "usage"
 
 # Intervention
 InterventionCurrentSMI_Fx1.20 <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.8333, sampleSize, "FX", typeOfImportance)
-InterventionCurrentSMI_Sd75 <- interventionC5(allData[currentSMIColumns], dependentVariable, 3586, sampleSize, "nominalSD", typeOfImportance)
+InterventionCurrentSMI_Sd75 <- interventionC5(allData[currentSMIColumns], dependentVariable, 3712, sampleSize, "nominalSD", typeOfImportance)
 
 ## SPIEX
 dependentVariable <- "SPIEXdir"
