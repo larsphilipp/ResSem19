@@ -332,7 +332,7 @@ interventionOutputPrint <- function(output) {
 ### Execution ---------------------------------------------------------------------------------------
 sampleSize <- 0.7
 sampleSize <- 0
-typeOfImportance <- "usage" # splits usage
+typeOfImportance <- "splits" # splits usage
 
 inputData <- allData[currentSMIColumns]
 interventionThreshold= 0.8333
