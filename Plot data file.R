@@ -65,5 +65,27 @@ pdf("plot_SD_ExchangeRate.pdf", height = 10, width = 10)
 PlotIndex
 dev.off()
 
+#  Descriptive statistics -------------------------------------
 
+# PreCap
+
+dataind <- dataind08
+dataind <- dataind[-1,-c(3,5)]
+dataind$RetSMI <- RetSMI
+dataind$ChgSDdomBanks <- ChgSD
+PreCap <- dataind[-c(1, 186: nrow(dataind)),]
+Cap <- dataind[-c(1:185,363:nrow(dataind)),]
+PostCap <- dataind[-c(1:362,569:577),]
+
+
+print(xtable(describe(PreCap[,-1]),"latex"))
+print(xtable(describe(Cap[,-1]), "latex"))
+print(xtable(describe(PostCap[,-1]), "latex"))
+
+
+
+# Correlations
+print(xtable(cor(PreCap[,-1], method = "spearman"),"latex"))
+print(xtable(cor(Cap[,-1],method = "spearman"), "latex"))
+print(xtable(cor(PostCap[,-1],method = "spearman"), "latex"))
 
