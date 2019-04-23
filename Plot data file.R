@@ -54,17 +54,36 @@ PlotIndex <- ggplot(data = Data, aes(x = Date)) + geom_line(aes(y = RetSMI, colo
   scale_y_log10()+
   scale_colour_manual(values = c("blue", "red"))+ labs(y = "logIndex (15.02.2008 = 100)",
                                                        x = "Date",
-                                                       colour = "Legend") + theme(legend.position = c(0.82,0.5))
+                                                       colour = "Legend") + theme(legend.position = c(0.82,0.5)) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        text=element_text(
+                          #       family="Comic Sans MS"))
+                          #       family="CM Roman"))
+                          #       family="TT Times New Roman"))
+                          #       family="Sans"))
+                          family="Garamond"))
+
 
 PlotFX <- ggplot(data=Data, aes(x= Date)) + geom_line(aes(y = 1/CHFEUR, colour = "CHF/EUR Exchange rate"))+ 
-  scale_colour_manual(values = c("green"))+ labs(y = "Exchange rate CHF/EUR", x = "Date", colour = "Legend")+ theme(legend.position = c(0.85,0.9))
+  scale_colour_manual(values = c("green"))+ labs(y = "Exchange rate CHF/EUR", x = "Date", colour = "Legend")+ theme(legend.position = c(0.85,0.9))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"),
+        text=element_text(
+          #       family="Comic Sans MS"))
+          #       family="CM Roman"))
+          #       family="TT Times New Roman"))
+          #       family="Sans"))
+          family="Garamond"))
    
 
                                                                                                                                                        
-pdf("plot_SD_ExchangeRate.pdf", height = 10, width = 10)
-PlotIndex
-dev.off()
+ggsave("plot_SD_ExchangeRate.jpg", plot = PlotIndex,  height = 10, width = 10)
+ggsave("Plot")
 
+pdf("Plot_Exchange_rate.pdf", family = "Garamond", height = 10, width = 10)
+PlotFX
+dev.off
 #  Descriptive statistics -------------------------------------
 
 # PreCap
