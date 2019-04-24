@@ -1,8 +1,8 @@
-# Titel:        C5.0 Decision Tree Analysis: Effect of SNB Policy on SMI Mid (2011 - 2018)
-# Course:       Financial Economics Reserach Seminar
+# Titel:        C5.0 Decision Tree Analysis: Effect of SNB Policy on SMI Mid (2008 - 2018)
+# Course:       Financial Economics Research Seminar
 # Institute:    University of St. Gallen
 # Authors:      Julian Woessner, Lars Stauffenegger
-# Date:         March 2019
+# Date:         April 2019
 # Version:      5.2
 # Description:  This File contains the statistical analysis of the monetary and
 #               financial market data for the research seminar in Financial Economics
@@ -18,12 +18,6 @@ library(zoo)
 library(ggplot2)
 library(psych)
 library(xtable)
-
-# setting working directory
-getwd()
-setwd("C:/Users/Lars Stauffenegger/Documents/MBF Unisg/Research Seminar/ResSem19")
-#setwd("/Users/julianwossner/Desktop/MBF/Vorlesungen_2._Semester/Research_Seminar_Financial_Economics/Daten/ResSem19")
-#setwd("C:/Users/LST/Documents/Uni/Research Seminar/ResSem19")
 
 
 # Data Import --------------------------------------
@@ -89,19 +83,13 @@ allData$CHFEURnext[1:574] <- allData$CHFEURdir[2:575] # CHFEURdata$CHFEURdir[1:5
 # delete first row and the last rows
 allData <-allData[2:568,] 
 
-## List of Colums -------------------------------------------- "CHFEURdir", "RetCHFEUR"
-basicColumnsIndex <- c("SDofDomBanks","ChgSDdomBanks","SDdomBanksdir","CHFUSD","CHFEUR","Gov3yr","Gov10yr","Libor3M_CHF")
-
-
+## List of Colums --------------------------------------------
 # Same Week
-#currentSMIColumns   <- c(basicColumnsIndex,"SMIprev","SMIdir")
-#currentSPIEXColumns <- c(basicColumnsIndex,"SPIEXprev","SPIEXdir")
 currentSMIColumns <- c("SDofDomBanks","Gov10yr","Gov3yr","Libor3M_CHF","CHFUSD","CHFEUR","ChgSDdomBanks","SMIdir","SDdomBanksdir","SMIprev")
 currentSPIEXColumns <- c("SDofDomBanks","Gov10yr","Gov3yr","Libor3M_CHF","CHFUSD","CHFEUR","ChgSDdomBanks","SPIEXdir","SDdomBanksdir","SPIEXprev")
+currentFxSMIColumns   <- c(basicColumnsFX,"RetSMI","SMI","SMIdir","CHFEURprev","CHFEURdir")
 
 # Forecast
-#forecastSMIColumns <- c(basicColumnsIndex,"SMIdir","SMI","SMInext", "RetSMI")
-#forecastSPIEXColumns <- c(basicColumnsIndex,"SPIEXdir","SPIEX", "SPIEXnext", "RetSPIEX")
 forecastSMIColumns <- c("SDofDomBanks","SMI","Gov10yr","Gov3yr","Libor3M_CHF","CHFUSD","CHFEUR","RetSMI","ChgSDdomBanks","SMIdir","SDdomBanksdir","SMInext")
 forecastSPIEXColumns <- c("SDofDomBanks","SPIEX","Gov10yr","Gov3yr","Libor3M_CHF","CHFUSD","CHFEUR","RetSPIEX","ChgSDdomBanks","SPIEXdir","SDdomBanksdir","SPIEXnext")
 
@@ -308,36 +296,11 @@ interventionC5 <- function(inputData, dependentVariable, interventionThreshold, 
   results
 }
 
-# ---------------------------------------------------------------------
-
-outputPrint <- function(output) {
-  print(output[c("PreCap.trainError","Cap.trainError","PostCap.trainError")])
-  print(output[c("PreCap.testError","Cap.testError","PostCap.testError")])
-  print(output[c("PreCap.varImp.ChgSDdomBanks","Cap.varImp.ChgSDdomBanks","PostCap.varImp.ChgSDdomBanks")])
-  print(output[c("PreCap.varImp.SDdomBanksdir","Cap.varImp.SDdomBanksdir","PostCap.varImp.SDdomBanksdir")])
-  print(output[c("PreCap.varImp.SDofDomBanks","Cap.varImp.SDofDomBanks","PostCap.varImp.SDofDomBanks")])
-}
-
-# -----------------------------------------------------------------
-
-interventionOutputPrint <- function(output) {
-  print(output[c("Int.trainError","NoInt.trainError")])
-  print(output[c("Int.testError","NoInt.testError")])
-  print(output[c("Int.tTestTestSet.p.value","NoInt.tTestTestSet.p.value")])
-  print(output[c("Int.varImp.ChgSDdomBanks","NoInt.varImp.ChgSDdomBanks")])
-  print(output[c("Int.varImp.SDdomBanksdir","NoInt.varImp.SDdomBanksdir")])
-  print(output[c("Int.varImp.SDofDomBanks","NoInt.varImp.SDofDomBanks")])
-}
 
 ### Execution ---------------------------------------------------------------------------------------
 sampleSize <- 0.7
 sampleSize <- 0
-typeOfImportance <- "splits" # splits usage
-
-inputData <- allData[currentSMIColumns]
-interventionThreshold= 0.8333
-typeOfThreshold = "FX"
-
+typeOfImportance <- "usage" # splits usage
 
 
 ## SMI
@@ -345,7 +308,7 @@ dependentVariable <- "SMIdir"
 # Periods
 currentSMI   <- periodsC5(allData[currentSMIColumns], dependentVariable, sampleSize, typeOfImportance)
 forecastSMI   <- periodsC5(allData[forecastSMIColumns], "SMInext", sampleSize, typeOfImportance)
-
+currentFx   <- periodsC5(allData[currentFxSMIColumns], "CHFEURdir", sampleSize, typeOfImportance)
 # Intervention
 InterventionCurrentSMI_Fx1.20 <- interventionC5(allData[currentSMIColumns], dependentVariable, 0.8333, sampleSize, "FX", typeOfImportance)
 InterventionCurrentSMI_Sd75 <- interventionC5(allData[currentSMIColumns], dependentVariable, 3712, sampleSize, "nominalSD", typeOfImportance)
@@ -353,61 +316,8 @@ InterventionCurrentSMI_Sd75 <- interventionC5(allData[currentSMIColumns], depend
 ## SPIEX
 dependentVariable <- "SPIEXdir"
 # Periods
-currentSPIEX <- allPeriodsC5(allData[currentSPIEXColumns], dependentVariable, sampleSize, typeOfImportance)
-forecastSPIEX <- allPeriodsC5(allData[forecastSPIEXColumns], "SPIEXnext", sampleSize, typeOfImportance)
+currentSPIEX <- periodsC5(allData[currentSPIEXColumns], dependentVariable, sampleSize, typeOfImportance)
+forecastSPIEX <- periodsC5(allData[forecastSPIEXColumns], "SPIEXnext", sampleSize, typeOfImportance)
 # Intervention
 InterventionCurrentSPIEX_Fx1.20 <- interventionC5(allData[currentSPIEXColumns], dependentVariable, 0.83, sampleSize, "FX", typeOfImportance)
 InterventionCurrentSMI_Sd75 <- interventionC5(allData[currentSPIEXColumns], dependentVariable, 3586, sampleSize, "nominalSD", typeOfImportance)
-
-
-## Plotting and descriptive statistics ---------------------------------------------------------------------------------------
-# Indices
-pdf("plot_SD_ExchangeRate.pdf", height = 20, width = 15)
-par(mfrow = c(5,1))
-plot(dataind04$Date, dataind04$SNBSD,  type = "l", xlab = "Date", ylab = "Index", main = "SNB Sight Deposits (in Mio. CHF)") # SNB Sight Deposits
-plot(dataind04$Date, dataind04$CHF.EUR,  type = "l", xlab = "Date", ylab = "Index", main = "CHF/EUR Exchange rate") # CHF/EUR Exchange rate
-plot(dataind04$Date, dataind04$SMI, type = "l", xlab = "Date", ylab = "Index", main = "SMI") # SMI
-plot(dataind04$Date, dataind04$SPIEX,  type = "l", xlab = "Date", ylab = "Index", main = "SPI Extra") # SPI Extra
-plot(dataind04$Date, dataind04$SMI.Mid,  type = "l", xlab = "Date", ylab = "Index", main = "SMI Mid") # SMI Mid
-dev.off()
-
-# Descriptive statistics
-# All Variables
-DataWoDates <- dataret[,-1] # Delete the Date column
-
-# PreCap period
-descr.PreCap <- describe(DataWoDates[1:186,]) # summary statistics for PreCap period
-mean(DataWoDates[1:186,]$RetSMI)
-mean(DataWoDates[1:186,]$RetSPIEX)
-mean(DataWoDates[1:186,]$RetSMIMid)
-min(DataWoDates[1:186,]$Libor3M_CHF)
-min(DataWoDates[1:186,]$ChgSDdomBanks)
-
-# Cap period
-descr.Cap <- describe(DataWoDates[187:363,]) # summary statistics for Cap period
-mean(DataWoDates[187:363,]$RetSMI)
-mean(DataWoDates[187:363,]$RetSPIEX)
-mean(DataWoDates[187:363,]$RetSMIMid)
-mean(DataWoDates[187:363,]$ChgSDdomBanks)
-
-# PostCap period
-descr.PostCap <- describe(DataWoDates[364:575,]) # summary statistics for PostCap period
-mean(DataWoDates[364:575,]$RetSMI)
-mean(DataWoDates[364:575,]$RetSPIEX)
-mean(DataWoDates[364:575,]$RetSMIMid)
-mean(DataWoDates[364:575,]$ChgSDdomBanks)
-
-
-## Correlations --------------------------------------
-# Indices & SNB Sight Deposits
-cor.ind <- cor(dataind04[,-1], method = "spearman") # Correlation for whole time period
-Cor <- cor(DataWoDates, method = "spearman") # calculate the Correlation Matrix Spearman
-
-# PreCapPeriods
-PreCapPeriod.cor <- cor(DataWoDates[1:186,], method = "spearman") # spearman correlation for PreCap period
-
-# During CapPeriods
-CapPeriod.cor <- cor(DataWoDates[187:363, ], method = "spearman") # spearman correlation for Cap period
-
-# PostCapPeriod CapPeriods
-PostCapPeriod.cor <- cor(DataWoDates[364:575,], method = "spearman") # spearman correlation for PostCap period
